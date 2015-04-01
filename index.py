@@ -6,6 +6,7 @@ import os
 import string
 import math
 from nltk.stem.porter import *
+import xml.etree.ElementTree as et
 
 
 def indexing(training_path, postings_file, dictionary_file):
