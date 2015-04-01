@@ -4,6 +4,7 @@ import sys
 import getopt
 import math
 from nltk.stem.porter import *
+import xml.etree.ElementTree as et
 
 def search(query_file, dictionary_file, postings_file, output_file):
     """
@@ -21,8 +22,7 @@ def search(query_file, dictionary_file, postings_file, output_file):
     """
     
     dictionary = read_dict(dictionary_file)   
-
-    # TODO: get postings
+    line_positions = get_line_positions(postings_file);
 
     output_table = []
     f = open(query_file, 'r')
@@ -30,7 +30,9 @@ def search(query_file, dictionary_file, postings_file, output_file):
     for line in f:
         query = tokenize_query(line)
         
-        #TODO: 
+        #TODO: Calculate scores for all documents
+
+        output_table.append(result_list)
 
     output_table = process_query(query_file);
     write_to_output_file(output_file, output_table)
@@ -56,6 +58,24 @@ def read_dict(dictionary_file):
 
     d.close()
     return dictionary
+
+
+def get_line_positions(postings_file):
+    """
+    reads line positions in memory
+
+    Returns:
+        line_offset (positions) list that contains the starting position of each line in a file 
+    """
+    
+    file = open(postings_file, 'r')
+    line_offset = []
+    offset = 0
+    for line in file:
+        line_offset.append(offset)
+        offset += len(line)
+    file.close()
+    return line_offset
 
 
 def process_query(query_file):
