@@ -67,30 +67,34 @@ def read_training_data(training_path, patent_info_file):
             root = tree.getroot()
             title_content = ""
             abstract_content = ""
-            patent_info = fileName
 
-            for r in root:
+            year = ""
+            cites = "0"
+            ipc = ""
+            inventor = ""
+
+            for child in root:
                 # extract patent content
-                if r.get('name') == 'Title':
-                    title_content += r.text.encode('utf-8') + " "
+                if child.get('name') == 'Title':
+                    title_content += child.text.encode('utf-8') + " "
 
-                if r.get('name') == 'Abstract':
-                    abstract_content += r.text.encode('utf-8') + " "
+                if child.get('name') == 'Abstract':
+                    abstract_content += child.text.encode('utf-8') + " "
 
                 # extract patent info (meta data)
-                if r.get('name') == '1st Inventor':
-                    patent_info += " | " + r.text.encode('utf-8').strip()
+                if child.get('name') == 'Publication Year':
+                    year = child.text.encode('utf-8').strip()
 
-                if r.get('name') == 'Cited By Count':
-                    patent_info += " | " + r.text.encode('utf-8').strip()
+                if child.get('name') == 'Cited By Count':
+                    cites = child.text.encode('utf-8').strip()
 
-                if r.get('name') == 'IPC Primary':
-                    patent_info += " | " + r.text.encode('utf-8').strip()
+                if child.get('name') == 'IPC Primary':
+                    ipc = child.text.encode('utf-8').strip()
 
-                if r.get('name') == 'Publication Year':
-                    patent_info += " | " + r.text.encode('utf-8').strip()
+                if child.get('name') == '1st Inventor':
+                    inventor = child.text.encode('utf-8').strip()
 
-            pi.write(patent_info+"\n")
+            pi.write(fileName + " | " + year + " | " + cites +  " | " + ipc + " | " + inventor + "\n")
 
             title_word_list = create_word_patent_list(title_content, fileName, True)
             abstract_word_list = create_word_patent_list(abstract_content, fileName, False)
