@@ -130,7 +130,7 @@ def create_word_patent_list(content, fileName, isTitle):
             # skip all words that contain just one item of punctuation
             if word in string.punctuation: 
                 continue
-            # add stemmed word and file name containing it to word_list
+            # add stemmed word and file name containing the word to word_list
             word_list.append([word_stemming(word.encode('utf-8'), stemmer), fileName, isTitle, (not isTitle)])
 
     return word_list
@@ -161,6 +161,8 @@ def consolidate_list(sorted_word_list, postings_file, dictionary_file):
     line_index = 0
     current_word = ""
     current_word_freq = {}
+    current_word_isTitle = {}
+    current_word_isAbstract = {}
     # dictonary for storing the length of the documents
     doc_lengths = {}
     for word, fileName, isTitle, isAbstract in sorted_word_list:
@@ -168,29 +170,35 @@ def consolidate_list(sorted_word_list, postings_file, dictionary_file):
         if current_word == "":
             current_word = word
             current_word_freq[fileName] = 1
-            current_word_isTitle = isTitle
-            current_word_isAbstract = isAbstract
+            current_word_isTitle[fileName] = isTitle
+            current_word_isAbstract[fileName] = isAbstract
 		# word occurs again - add file number to current posting list
         elif word == current_word:
             if not fileName in current_word_freq.keys():
                 current_word_freq[fileName] = 1
+                current_word_isTitle[fileName] = isTitle
+                current_word_isAbstract[fileName] = isAbstract
             else:
                 current_word_freq[fileName] += 1
-
-            current_word_isTitle = current_word_isTitle or isTitle
-            current_word_isAbstract = current_word_isAbstract or isAbstract
+                current_word_isTitle[fileName] = current_word_isTitle[fileName] or isTitle
+                current_word_isAbstract[fileName] = current_word_isAbstract[fileName] or isAbstract
 		# a new word
         else:
-            # write previous word including frequency of posting entries and pointer to posting file line to dictionary
+            # write previous word to the dictionary file
             write_to_dict(d, current_word, current_word_freq, line_index)
-            # write posting list to posting file
+            # write posting list to postings file
             doc_lengths = write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, current_word_isAbstract)
-			#start new list for new word
+			
+            # clear dictionaries
             current_word_freq = {}
-            current_word_freq[fileName] = 1
-            current_word_isTitle = isTitle
-            current_word_isAbstract = isAbstract
+            current_word_isTitle = {}
+            current_word_isAbstract = {}
+
+            # save values of the new term
             current_word = word
+            current_word_freq[fileName] = 1
+            current_word_isTitle[fileName] = isTitle
+            current_word_isAbstract[fileName] = isAbstract
             line_index += 1
 
     # write last word and postings to files        
@@ -204,6 +212,9 @@ def consolidate_list(sorted_word_list, postings_file, dictionary_file):
 
 
 def write_to_dict(d, current_word, current_word_freq, line_index):
+    '''
+        write word, frequency of posting entries and pointer to posting line to the dictionary file
+    '''
     d.write(current_word+" "+str(len(current_word_freq))+" "+str(line_index)+"\n")
 
 
@@ -221,15 +232,18 @@ def write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, c
     Returns:
         doc_lengths: the updated length vector
     """
-    current_postings_keys = sorted(current_word_freq.iterkeys())
+    current_postings_keys = current_word_freq.iterkeys()
     for docName in current_postings_keys:
         log_tf = get_tf_value(current_word_freq, docName)
-        f.write(str(docName)+" "+str(log_tf)+" "+booleanToNo(current_word_isTitle)+" "+booleanToNo(current_word_isAbstract)+" ")
+        isTitle = booleanToNo(current_word_isTitle[docName])
+        isAbstract = booleanToNo(current_word_isAbstract[docName])
+        f.write(str(docName)+" "+str(log_tf)+" "+isTitle+" "+isAbstract+" ")
 
         # update the document length vector with the new tf value
         doc_lengths = add_value_to_doc_length(doc_lengths, docName, log_tf)
     f.write("\n")
     return doc_lengths
+
 
 def booleanToNo(boolean_value):
     if boolean_value:
