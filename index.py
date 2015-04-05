@@ -67,7 +67,7 @@ def read_training_data(training_path, patent_info_file):
             root = tree.getroot()
             title_content = ""
             abstract_content = ""
-            patent_info = fileName + " | "
+            patent_info = fileName
 
             for r in root:
                 # extract patent content
@@ -79,18 +79,18 @@ def read_training_data(training_path, patent_info_file):
 
                 # extract patent info (meta data)
                 if r.get('name') == '1st Inventor':
-                    patent_info += r.text.encode('utf-8') + " | " 
+                    patent_info += " | " + r.text.encode('utf-8').strip()
 
                 if r.get('name') == 'Cited By Count':
-                    patent_info += r.text.encode('utf-8') + " | "
+                    patent_info += " | " + r.text.encode('utf-8').strip()
 
                 if r.get('name') == 'IPC Primary':
-                    patent_info += r.text.encode('utf-8') + " | "
+                    patent_info += " | " + r.text.encode('utf-8').strip()
 
                 if r.get('name') == 'Publication Year':
-                    patent_info += r.text.encode('utf-8')
+                    patent_info += " | " + r.text.encode('utf-8').strip()
 
-            pi.write(patent_info)
+            pi.write(patent_info+"\n")
 
             title_word_list = create_word_patent_list(title_content, fileName, True)
             abstract_word_list = create_word_patent_list(abstract_content, fileName, False)
@@ -332,7 +332,9 @@ except getopt.GetoptError, err:
     sys.exit(2)
 for o, a in opts:
     if o == '-i':
-        path_to_training = a #TODO: check that it ends with /
+        training_path = a
+        if "/" not in training_path:
+            training_path += "/"
     elif o == '-d':
         dictionary_file = a
     elif o == '-p':
