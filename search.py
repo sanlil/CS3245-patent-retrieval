@@ -4,7 +4,7 @@ import getopt
 from nltk.stem.porter import *
 from VectorSpaceModel import VectorSpaceModel
 
-def search(query_file, dictionary_file, postings_file, output_file):
+def search(query_file, dictionary_file, postings_file, output_file, patent_info_file):
     """
     reads in and executes queries with the content of dictionary and postings file
     and writes the answers to the output_file
@@ -21,10 +21,18 @@ def search(query_file, dictionary_file, postings_file, output_file):
     
     dictionary = read_dict(dictionary_file)   
     line_positions, last_line_pos = get_line_positions(postings_file);
-    # query = process_query(query_file);
+    patent_info = get_patent_info(patent_info_file)
     ScoreCalculator = VectorSpaceModel(dictionary, postings_file, line_positions)
     scores = ScoreCalculator.getScores(query_file, last_line_pos)
     write_to_output_file(output_file, scores)
+
+    print "======= NEW TEST RUN ========="
+    count = 0
+    while count < 20:
+        doc_name, score = scores[count]
+        print doc_name, score, patent_info[doc_name]
+        count += 1
+    print "\n"
 
 def read_dict(dictionary_file):
     """
@@ -57,14 +65,14 @@ def get_line_positions(postings_file):
         last_line_pos   position for the last line (containing documents and their lengths)
     """
     
-    file = open(postings_file, 'r')
+    f = open(postings_file, 'r')
     line_offset = []
     offset = 0
-    for line in file:
+    for line in f:
         line_offset.append(offset)
         last_line_pos = offset
         offset += len(line)
-    file.close()
+    f.close()
     return (line_offset, last_line_pos)
 
 def write_to_output_file(output_file, scores):
@@ -72,10 +80,24 @@ def write_to_output_file(output_file, scores):
     writes the scores to output_file
     """
     f = open(output_file, 'w+')
-    g = open('output-debug.txt', 'w+')
+    g = open('output-debug.txt', 'w+') #just for debugging - remove later
     for doc_name, score in scores:
         f.write(doc_name + ' ')
-        g.write(doc_name + ' ' + str(score) + '\n')
+        g.write(doc_name + ' ' + str(score) + '\n') #just for debugging - remove later
+
+def get_patent_info(patent_info_file):
+    """
+        Returns:
+            patent_info     dictionary with all patent meta data accessible by patent name
+                            meta data format: [year, cites, ipc, inventor]
+    """
+    patent_info = {}
+    f = open(patent_info_file, 'r')
+    for line in f:
+        info_list = line.split(" | ")
+        doc_name = info_list[0]
+        patent_info[doc_name] = info_list[1:]
+    return patent_info
 
 def usage():
     print 'usage: ' + sys.argv[0] + ' -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results'
@@ -89,6 +111,7 @@ query_file = 'queries/q1.xml'
 dictionary_file = 'dictionary.txt'
 postings_file = 'postings.txt'
 output_file = 'output.txt'
+patent_info_file = 'patent_info.txt'
 
 last_dict_line = 0
 
@@ -109,4 +132,4 @@ for o, a in opts:
     else:
         assert False, 'unhandled option'
 
-search(query_file, dictionary_file, postings_file, output_file)
+search(query_file, dictionary_file, postings_file, output_file, patent_info_file)
