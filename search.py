@@ -1,11 +1,7 @@
 #!/usr/bin/python
-import nltk
 import sys
 import getopt
-import math
-import string
 from nltk.stem.porter import *
-import xml.etree.ElementTree as et
 from VectorSpaceModel import VectorSpaceModel
 
 def search(query_file, dictionary_file, postings_file, output_file):
@@ -25,14 +21,10 @@ def search(query_file, dictionary_file, postings_file, output_file):
     
     dictionary = read_dict(dictionary_file)   
     line_positions, last_line_pos = get_line_positions(postings_file);
-    query = process_query(query_file);
-    ScoreCalculator = VectorSpaceModel(query, dictionary, postings_file, line_positions, last_line_pos)
-    scores = ScoreCalculator.getScores()
+    # query = process_query(query_file);
+    ScoreCalculator = VectorSpaceModel(dictionary, postings_file, line_positions)
+    scores = ScoreCalculator.getScores(query_file, last_line_pos)
     write_to_output_file(output_file, scores)
-
-    print "======== NEW TEST RUN ========="
-    print query
-    print "\n"    
 
 def read_dict(dictionary_file):
     """
@@ -74,51 +66,6 @@ def get_line_positions(postings_file):
         offset += len(line)
     file.close()
     return (line_offset, last_line_pos)
-
-def process_query(query_file):
-    """
-    read and process query by extracting title and description and calculating document scores
-
-    Arguments:
-        query_file      path to the file containing the query
-
-    Returns: 
-        query          a list with words extracted from the query file
-    """
-
-    tree = et.parse(query_file)
-    root = tree.getroot()
-
-    for child in root:
-        if child.tag == 'title':
-            title_content = child.text.encode('utf-8')
-
-        if child.tag == 'description':
-            desc_content = child.text.encode('utf-8')
-            # remove the 4 first words since they always will be: "Relevant documents will describe"
-            desc_content = ' '.join(desc_content.split()[4:])
-
-    content = title_content + ' ' + desc_content
-
-    stemmer = PorterStemmer()
-    
-    query_list = []
-    sentences = nltk.sent_tokenize(content)
-    for sentence in sentences:
-        words = nltk.word_tokenize(sentence)
-        for word in words:
-            # skip all words that contain just one item of punctuation
-            if word in string.punctuation: 
-                continue
-            # add stemmed word the query_list
-            query_list.append(word_stemming(word, stemmer))
-    return query_list
-
-def word_stemming(word, stemmer):
-       """
-           returns an uncapitalized and stemmed word 
-       """
-       return stemmer.stem(word.lower())
 
 def write_to_output_file(output_file, scores):
     """

@@ -1,39 +1,85 @@
 import math
+import nltk
+import string
 import operator
 from collections import Counter
 from nltk.stem.porter import *
+import xml.etree.ElementTree as et
 
 class VectorSpaceModel:
     '''
         Class for calculating score with the Vector Space Model
     '''
 
-    def __init__(self, query, dictionary, postings_file, line_positions, last_line_pos):
-        self.query = query
+    def __init__(self, dictionary, postings_file, line_positions):
         self.dictionary = dictionary
         self.postings_file = postings_file
         self.line_positions = line_positions
-        self.last_line_pos = last_line_pos
 
-    def getScores(self):
+    def getScores(self, query_file, last_line_pos):
         """
-            public class for calculating scores with the VSM
+            public class for calculating scores with the vector space model
 
             Return:
                 scores  list of tuples with document names and scores ordered by decreasing score
         """
-        length_vector, n = self.__get_length_vector()
-        scores = self.__calculate_cosine_score(length_vector, n)
+        query = self.__process_query(query_file)
+        length_vector, n = self.__get_length_vector(last_line_pos)
+        scores = self.__calculate_cosine_score(query, length_vector, n)
         return scores
 
-    def __get_length_vector(self):
+    def __process_query(self, query_file):
         """
+        read and process query by extracting title and description and calculating document scores
+
+        Arguments:
+            query_file  path to the file containing the query
+
+        Returns: 
+            query       a dictionary with words extracted from the query file and the number of times it occures
+        """
+
+        tree = et.parse(query_file)
+        root = tree.getroot()
+
+        for child in root:
+            if child.tag == 'title':
+                title_content = child.text.encode('utf-8')
+
+            if child.tag == 'description':
+                desc_content = child.text.encode('utf-8')
+                # remove the 4 first words since they always will be: "Relevant documents will describe"
+                desc_content = ' '.join(desc_content.split()[4:])
+
+        content = title_content + ' ' + desc_content
+
+        stemmer = PorterStemmer()
+        
+        query_list = []
+        sentences = nltk.sent_tokenize(content)
+        for sentence in sentences:
+            words = nltk.word_tokenize(sentence)
+            for word in words:
+                # skip all words that contain just one item of punctuation
+                if word in string.punctuation: 
+                    continue
+                # add stemmed word the query_list
+                query_list.append(stemmer.stem(word.lower()))
+
+        query = Counter(query_list)
+        return query
+
+    def __get_length_vector(self, last_line_pos):
+        """
+            Arguments:
+                last_line_pos   the position of the last line in the postings file containing all normalization factors
+
             Return:
                 length_vector   dictionary containing the normalization factor for each document accessable by document name
                 n               the number of documents in the training data
         """
         f = open(self.postings_file, 'r')
-        f.seek(self.last_line_pos)
+        f.seek(last_line_pos)
         postings_list = f.readline().split()
         length_vector = {}
         n = 0
@@ -47,24 +93,23 @@ class VectorSpaceModel:
         f.close()
         return (length_vector, n)
 
-    def __calculate_cosine_score(self, length_vector, n):
+    def __calculate_cosine_score(self, query, length_vector, n):
         """
-        computes the cosine scores for a query and all given documents and returns the best results
+        computes the cosine scores for a query and all given documents and returns the scores for relevant documents
 
         Arguments:
-            length_vector     dictionary containing the normalization factor for each document accessable by document name
-            n                 the number of documents in the training data
+            query           dictionary containing query words and the number of times it occures in the query            
+            length_vector   dictionary containing the normalization factor for each document accessable by document name
+            n               the number of documents in the training data
 
         Returns:
-            ordered_scores    list of tuples with document names and scores ordered by decreasing score
+            ordered_scores  list of tuples with document names and scores for relevant documents ordered by decreasing score
         """
 
         scores = {}
         length_query = 0
 
-        query_counts = Counter(self.query)
-
-        for query_term, term_count in query_counts.items():
+        for query_term, term_count in query.items():
             weight_query = self.__get_weight_query_term(query_term, term_count, n)
             length_query += math.pow(weight_query, 2)
             term_postings = self.__get_postings(query_term)
@@ -95,10 +140,6 @@ class VectorSpaceModel:
 
         Arguments:
             word            term that is meant to be look up
-            dictionary  
-            postings_file
-            line_positions  contains the position of every line in the postings-file
-                            are used to read a specific line out of the postings file
 
         Returns:    
            list of tuples (doc_name, tf) corresponding to the word
@@ -127,17 +168,16 @@ class VectorSpaceModel:
 
     def __get_weight_query_term(self, term, term_count, n):
         """
-        calculates the weight of a term in a query by pattern tf.idf
+        calculates the weight of a term in a query by the pattern tf.idf
         if term is not defined in dictionary => weight_query = 0
 
         Arguments:
             term        term in query to calculate for
-            dictionary
+            term_count  the number of times the term occures in the query
             n           number of documents in training data
-            query       array with query terms
 
         Returns:
-            weight of query
+            weight of the query term
         """
 
         # calculate tf in query
