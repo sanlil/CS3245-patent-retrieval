@@ -22,8 +22,8 @@ class VectorSpaceModel:
             Return:
                 scores  list of tuples with document names and scores ordered by decreasing score
         """
-        length_vector, n = self.get_length_vector()
-        scores = self.calculate_cosine_score(length_vector, n)
+        length_vector, n = self.__get_length_vector()
+        scores = self.__calculate_cosine_score(length_vector, n)
         return scores
 
     def __get_length_vector(self):
@@ -65,9 +65,9 @@ class VectorSpaceModel:
         query_counts = Counter(self.query)
 
         for query_term, term_count in query_counts.items():
-            weight_query = self.get_weight_query_term(query_term, term_count, n)
+            weight_query = self.__get_weight_query_term(query_term, term_count, n)
             length_query += math.pow(weight_query, 2)
-            term_postings = self.get_postings(query_term)
+            term_postings = self.__get_postings(query_term)
             all_relevant_documents = []
 
             for (doc_name, tf) in term_postings:
