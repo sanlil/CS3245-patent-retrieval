@@ -16,11 +16,17 @@ class VectorSpaceModel:
         self.last_line_pos = last_line_pos
 
     def getScores(self):
+        """
+            public class for calculating scores with the VSM
+
+            Return:
+                scores  list of tuples with document names and scores ordered by decreasing score
+        """
         length_vector, n = self.get_length_vector()
         scores = self.calculate_cosine_score(length_vector, n)
         return scores
 
-    def get_length_vector(self):
+    def __get_length_vector(self):
         """
             Return:
                 length_vector   dictionary containing the normalization factor for each document accessable by document name
@@ -41,7 +47,7 @@ class VectorSpaceModel:
         f.close()
         return (length_vector, n)
 
-    def calculate_cosine_score(self, length_vector, n):
+    def __calculate_cosine_score(self, length_vector, n):
         """
         computes the cosine scores for a query and all given documents and returns the best results
 
@@ -61,7 +67,7 @@ class VectorSpaceModel:
         for query_term, term_count in query_counts.items():
             weight_query = self.get_weight_query_term(query_term, term_count, n)
             length_query += math.pow(weight_query, 2)
-            term_postings = self.get_postings(term)
+            term_postings = self.get_postings(query_term)
             all_relevant_documents = []
 
             for (doc_name, tf) in term_postings:
@@ -82,7 +88,7 @@ class VectorSpaceModel:
         ordered_scores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True);
         return ordered_scores
 
-    def get_postings(self, word):
+    def __get_postings(self, word):
         """
         looks up a word in the given dictionary 
         and returns all postings that belong to that word
@@ -119,7 +125,7 @@ class VectorSpaceModel:
         else:
             return []
 
-    def get_weight_query_term(self, term, term_count, n):
+    def __get_weight_query_term(self, term, term_count, n):
         """
         calculates the weight of a term in a query by pattern tf.idf
         if term is not defined in dictionary => weight_query = 0
