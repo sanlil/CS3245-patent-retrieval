@@ -80,10 +80,12 @@ def write_to_output_file(output_file, scores):
     writes the scores to output_file
     """
     f = open(output_file, 'w+')
-    g = open('output-debug.txt', 'w+') #just for debugging - remove later
-    for doc_name, score in scores:
-        f.write(doc_name + ' ')
-        g.write(doc_name + ' ' + str(score) + '\n') #just for debugging - remove later
+    g = open("debug_" + output_file, 'w+') #just for debugging - remove later
+    
+	# Fred: output has no trailing space, and ends with a newline
+    f.write(' '.join([doc_name for doc_name, score in scores]) + '\n')
+    
+    g.write('\n'.join([doc_name + ' ' + str(score) for doc_name, score in scores])) #just for debugging - remove later	
 
 def get_patent_info(patent_info_file):
     """
