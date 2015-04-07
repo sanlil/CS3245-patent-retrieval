@@ -4,7 +4,49 @@ import getopt
 from nltk.stem.porter import *
 from VectorSpaceModel import VectorSpaceModel
 
-def search(query_file, dictionary_file, postings_file, output_file, patent_info_file):
+DEBUG_RESULTS = True
+
+def print_result_info(scores, retrieve, not_retrieve):
+    """
+    Print some useful information on the query results based on the expected results.
+    Tell us which relevant documents we missed and what are the rankings of the relevant
+    documents we retrieved. Also tell us which irrelevant documents were retrieved,
+    and what are their rankings.
+    """
+
+    # Create a dictionary of the positions of the documents
+    positional_scores = [(doc, i + 1) for i, (doc, score) in enumerate(scores)]
+    scores_dict = dict(positional_scores)
+    retrieved_docs = set(scores_dict.keys())
+    
+    # Obtain the documents that we should retrieve and those that we shouldn't
+    with open(retrieve) as r, open(not_retrieve) as n:
+        wanted = set([l.rstrip() for l in r.readlines()])
+        unwanted = set([l.rstrip() for l in n.readlines()])
+        
+    print 'Retrieved %d documents' % len(scores)
+    
+    correctly_obtained = wanted & retrieved_docs
+    nco = len(correctly_obtained)
+    nw = len(wanted)
+    print 'Correctly hit %d documents out of %d wanted (%f%%)' % (nco, nw, nco / float(nw) * 100.0)
+    print 'Documents missed: %s\n' % ', '.join(wanted - correctly_obtained)
+    
+    print 'Rankings of hit documents:\n\t',
+    print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in correctly_obtained])
+    
+    print ''
+    
+    incorrectly_obtained = unwanted & retrieved_docs
+    nio = len(incorrectly_obtained)
+    nu = len(unwanted)
+    print 'Incorrectly retrieved %d documents out of %d to avoid (%f%%)' % (nio, nu, nio / float(nu) * 100.0)
+    print 'Rankings of false positives:\n\t',
+    print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in incorrectly_obtained])
+    
+    
+
+def search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve):
     """
     reads in and executes queries with the content of dictionary and postings file
     and writes the answers to the output_file
@@ -25,14 +67,9 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     ScoreCalculator = VectorSpaceModel(dictionary, postings_file, line_positions)
     scores = ScoreCalculator.getScores(query_file, last_line_pos)
     write_to_output_file(output_file, scores)
-
-    print "======= NEW TEST RUN ========="
-    count = 0
-    while count < 20:
-        doc_name, score = scores[count]
-        print doc_name, score, patent_info[doc_name]
-        count += 1
-    print "\n"
+    
+    if DEBUG_RESULTS:
+        print_result_info(scores, retrieve, not_retrieve)
 
 def read_dict(dictionary_file):
     """
@@ -109,16 +146,18 @@ def usage():
 # MAIN
 ######################
 
-query_file = 'queries/q1.xml'
+query_file = 'queries/q2.xml'
 dictionary_file = 'dictionary.txt'
 postings_file = 'postings.txt'
 output_file = 'output.txt'
 patent_info_file = 'patent_info.txt'
+retrieve = 'queries/q2-qrels+ve.txt'
+not_retrieve = 'queries/q2-qrels-ve.txt'
 
 last_dict_line = 0
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'q:d:p:o:')
+    opts, args = getopt.getopt(sys.argv[1:], 'q:d:p:o:r:n:')
 except getopt.GetoptError, err:
     usage()
     sys.exit(2)
@@ -131,7 +170,11 @@ for o, a in opts:
         postings_file = a
     elif o == '-o':
         output_file = a
+    elif o == '-r':
+        retrieve = a
+    elif o == '-n':
+        not_retrieve = a
     else:
         assert False, 'unhandled option'
 
-search(query_file, dictionary_file, postings_file, output_file, patent_info_file)
+search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve)
