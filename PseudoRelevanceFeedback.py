@@ -27,7 +27,8 @@ class PseudoRelevanceFeedback:
 
         content = ''
         for (doc_name, score) in self.old_results:
-            tree = et.parse(training_path + doc_name + '.xml')
+            path = training_path + doc_name + '.xml'
+            tree = et.parse(path)
             root = tree.getroot()
 
             for child in root:
@@ -46,18 +47,20 @@ class PseudoRelevanceFeedback:
                 if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
                     continue
                 # add stemmed word the query_list
-                query_list.append(stemmer.stem(word.lower()))
+                query_list.append(word.lower())
 
         query = Counter(query_list)
 
         query_weights = {}
         for term, count in query.items():
-            weight = self.__get_weight_query_term(term, count, n)
+            stemmed_term = stemmer.stem(term)
+            weight = self.__get_weight_query_term(stemmed_term, count, n)
             query_weights[term] = weight
 
         best_query_terms = [x[0] for x in sorted(query_weights.items(), key=operator.itemgetter(1), reverse=True)][:30]
+        best_query_string = ' '.join(best_query_terms)
         
-        return best_query_terms
+        return best_query_string
 
     #TODO: Think about if this is the correct way to calculate the weight in this case!
     def __get_weight_query_term(self, term, term_count, n):

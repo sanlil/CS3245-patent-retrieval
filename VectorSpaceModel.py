@@ -4,7 +4,6 @@ import string
 import operator
 from collections import Counter
 from nltk.stem.porter import *
-import xml.etree.ElementTree as et
 
 DBG_USE_STOPS = True
 
@@ -20,49 +19,31 @@ class VectorSpaceModel:
         self.postings_file = postings_file
         self.line_positions = line_positions
 
-    def getScores(self, query_file, last_line_pos, length_vector, n):
+    def getScores(self, query, last_line_pos, length_vector, n):
         """
             public class for calculating scores with the vector space model
 
             Return:
                 scores  list of tuples with document names and scores ordered by decreasing score
         """
-        query = self.__process_query(query_file)
-        scores = self.__calculate_cosine_score(query, length_vector, n)
+        query_count = self.__process_query(query)
+        scores = self.__calculate_cosine_score(query_count, length_vector, n)
         return scores
 
-    def __process_query(self, query_file):
+    def __process_query(self, query):
         """
-        read and process query by extracting title and description and calculating document scores
+        Tokenize and stem the query words and compute the frequency of each word in the query list
 
         Arguments:
-            query_file  path to the file containing the query
+            query           string of query words
 
         Returns: 
-            query       a dictionary with words extracted from the query file and the number of times it occures
+            query_count     a dictionary with the stemmed words and the its frequency in the query
         """
-
-        tree = et.parse(query_file)
-        root = tree.getroot()
-
-        title_content = ''
-        desc_content = ''
-
-        for child in root:
-            if child.tag == 'title':
-                title_content = child.text.encode('utf-8')
-
-            if child.tag == 'description':
-                desc_content = child.text.encode('utf-8')
-                # remove the 4 first words since they always will be: "Relevant documents will describe"
-                desc_content = ' '.join(desc_content.split()[4:])
-
-        content = title_content + ' ' + desc_content
-
         stemmer = PorterStemmer()
         
         query_list = []
-        sentences = nltk.sent_tokenize(content)
+        sentences = nltk.sent_tokenize(query)
         for sentence in sentences:
             words = nltk.word_tokenize(sentence)
             for word in words:
@@ -72,8 +53,9 @@ class VectorSpaceModel:
                 # add stemmed word the query_list
                 query_list.append(stemmer.stem(word.lower()))
 
-        query = Counter(query_list)
-        return query
+        # count the frequency of each term
+        query_count = Counter(query_list)
+        return query_count
 
     def __calculate_cosine_score(self, query, length_vector, n):
         """

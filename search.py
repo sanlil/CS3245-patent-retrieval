@@ -2,6 +2,7 @@
 import sys
 import getopt
 from nltk.stem.porter import *
+import xml.etree.ElementTree as et
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
@@ -94,17 +95,21 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     line_positions, last_line_pos = get_line_positions(postings_file);
     patent_info = get_patent_info(patent_info_file)
     length_vector, n = get_length_vector(postings_file, last_line_pos)
+    org_query = extract_query_words(query_file)
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
-    scores = VSM.getScores(query_file, last_line_pos, length_vector, n)
+    first_scores = VSM.getScores(org_query, last_line_pos, length_vector, n)
 
-    PRF = PseudoRelevanceFeedback(scores[:5], dictionary, postings_file, line_positions)
+    PRF = PseudoRelevanceFeedback(first_scores[:10], dictionary, postings_file, line_positions)
     new_query = PRF.generate_new_query(training_path, n)
+    query = org_query + ' ' + new_query
 
-    write_to_output_file(output_file, scores)
+    second_scores = VSM.getScores(query, last_line_pos, length_vector, n)
+
+    write_to_output_file(output_file, second_scores)
     
     if DEBUG_RESULTS:
-        print_result_info(scores, retrieve, not_retrieve, patent_info)
+        print_result_info(second_scores, retrieve, not_retrieve, patent_info)
 
 def read_dict(dictionary_file):
     """
@@ -122,7 +127,7 @@ def read_dict(dictionary_file):
     dictionary = {}
     for line in d:
         if "#" in line:
-            training_path = line.split(' ')[1]
+            training_path = line.split(' ')[1].rstrip()
         else:
             word, freq, postings_line = line.split(' ')
             dictionary[word] = (freq, postings_line)
@@ -192,6 +197,33 @@ def get_length_vector(postings_file, last_line_pos):
     f.close()
     return (length_vector, n)
 
+def extract_query_words(query_file):
+    """
+    Parse the query xml files and extract the titles and descriptions of the documents
+
+    Arguments:
+        query_file  path to the file containing the query
+
+    Returns: 
+        content     string of all the query words
+    """
+
+    tree = et.parse(query_file)
+    root = tree.getroot()
+
+    query_content = ''
+
+    for child in root:
+        if child.tag == 'title':
+            query_content += child.text.encode('utf-8')
+
+        if child.tag == 'description':
+            desc = child.text.encode('utf-8')
+            # remove the 4 first words since they always will be: "Relevant documents will describe"
+            query_content += ' '.join(desc.split()[4:])
+
+    return query_content
+
 def write_to_output_file(output_file, scores):
     """
     writes the scores to output_file
@@ -208,44 +240,6 @@ def write_to_output_file(output_file, scores):
     f.write(' '.join([doc_name for doc_name, score in scores]) + '\n')
     
     g.write('\n'.join([doc_name + ' ' + str(score) for doc_name, score in scores])) #just for debugging - remove later	
-
-def print_result_info(scores, retrieve, not_retrieve):
-    """
-    Print some useful information on the query results based on the expected results.
-    Tell us which relevant documents we missed and what are the rankings of the relevant
-    documents we retrieved. Also tell us which irrelevant documents were retrieved,
-    and what are their rankings.
-    """
-
-    # Create a dictionary of the positions of the documents
-    positional_scores = [(doc, i + 1) for i, (doc, score) in enumerate(scores)]
-    scores_dict = dict(positional_scores)
-    retrieved_docs = set(scores_dict.keys())
-    
-    # Obtain the documents that we should retrieve and those that we shouldn't
-    with open(retrieve) as r, open(not_retrieve) as n:
-        wanted = set([l.rstrip() for l in r.readlines()])
-        unwanted = set([l.rstrip() for l in n.readlines()])
-        
-    print 'Retrieved %d documents' % len(scores)
-    
-    correctly_obtained = wanted & retrieved_docs
-    nco = len(correctly_obtained)
-    nw = len(wanted)
-    print 'Correctly hit %d documents out of %d wanted (%f%%)' % (nco, nw, nco / float(nw) * 100.0)
-    print 'Documents missed: %s\n' % ', '.join(wanted - correctly_obtained)
-    
-    print 'Rankings of hit documents:\n\t',
-    print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in correctly_obtained])
-    
-    print ''
-    
-    incorrectly_obtained = unwanted & retrieved_docs
-    nio = len(incorrectly_obtained)
-    nu = len(unwanted)
-    print 'Incorrectly retrieved %d documents out of %d to avoid (%f%%)' % (nio, nu, nio / float(nu) * 100.0)
-    print 'Rankings of false positives:\n\t',
-    print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in incorrectly_obtained])
 
 def usage():
     print 'usage: ' + sys.argv[0] + ' -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results -r output-debug-file'
