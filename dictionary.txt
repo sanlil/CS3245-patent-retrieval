@@ -8254,3 +8254,4 @@ zld 1 8252
 zn 1 8253
 zone 63 8254
 zwitterion 1 8255
+# patsnap-corpus/

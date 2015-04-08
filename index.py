@@ -29,7 +29,7 @@ def indexing(training_path, postings_file, dictionary_file, patent_info_file):
     word_list = read_training_data(training_path, patent_info_file)
     sorted_word_list = sort_alphabetically(word_list)
 
-    consolidate_list(sorted_word_list, postings_file, dictionary_file)
+    consolidate_list(sorted_word_list, postings_file, dictionary_file, training_path)
 
 
 def sort_alphabetically(word_list):
@@ -63,7 +63,6 @@ def read_training_data(training_path, patent_info_file):
             # if count > 1:
             #     break
             # count += 1;
-            print "now looking at:",(training_path + file)
             tree = et.parse(training_path + file)
             root = tree.getroot()
             title_content = ""
@@ -141,7 +140,7 @@ def word_stemming(old_word, stemmer):
     return stemmer.stem(old_word.lower())
 
 
-def consolidate_list(sorted_word_list, postings_file, dictionary_file):
+def consolidate_list(sorted_word_list, postings_file, dictionary_file, training_path):
     """
     consolidates the given word_list 
 	by summing up same words and uniting their list of occurrences. 
@@ -169,7 +168,6 @@ def consolidate_list(sorted_word_list, postings_file, dictionary_file):
     for word, fileName, isTitle, isAbstract in sorted_word_list:
 		# first case - file number can be added to posting list anyway
         if current_word == "":
-            print "NEW WORD:",current_word
             current_word = word
             current_word_freq[fileName] = 1
             current_word_isTitle[fileName] = isTitle
@@ -187,7 +185,6 @@ def consolidate_list(sorted_word_list, postings_file, dictionary_file):
 		# a new word
         else:
             # write previous word to the dictionary file
-            print "NEW WORD:",current_word
             write_to_dict(d, current_word, current_word_freq, line_index)
             # write posting list to postings file
             doc_lengths = write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, current_word_isAbstract)
@@ -206,10 +203,10 @@ def consolidate_list(sorted_word_list, postings_file, dictionary_file):
 
     # write last word and postings to files        
     write_to_dict(d, current_word, current_word_freq, line_index)
-    print "NEW WORD:",current_word
     doc_lengths = write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, current_word_isAbstract)
 
     write_doc_lengths(f, doc_lengths)
+    write_training_path(d, training_path)
 
     f.close()
     d.close()
@@ -242,7 +239,6 @@ def write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, c
         isTitle = booleanToNo(current_word_isTitle[docName])
         isAbstract = booleanToNo(current_word_isAbstract[docName])
         f.write(str(docName)+" "+str(log_tf)+" "+isTitle+" "+isAbstract+" ")
-        print "docName:",docName,"freq:",current_word_freq[docName],"log-tf:",log_tf
 
         # update the document length vector with the new tf value
         doc_lengths = add_value_to_doc_length(doc_lengths, docName, log_tf)
@@ -300,6 +296,11 @@ def write_doc_lengths(f, doc_lengths):
             sqrt_length_val = math.sqrt(doc_lengths[fileName])
             f.write(fileName + " " + str(sqrt_length_val) + " ")
 
+def write_training_path(d, training_path):
+    '''
+        write the path to the training data at the bottom of the dictionary file to use for relevance feedback
+    '''
+    d.write("# "+training_path)
 
 def calculate_length_vector(dictionary, postings_file, line_positions, all_postings, n):
     """

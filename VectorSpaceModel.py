@@ -20,7 +20,7 @@ class VectorSpaceModel:
         self.postings_file = postings_file
         self.line_positions = line_positions
 
-    def getScores(self, query_file, last_line_pos):
+    def getScores(self, query_file, last_line_pos, length_vector, n):
         """
             public class for calculating scores with the vector space model
 
@@ -28,7 +28,6 @@ class VectorSpaceModel:
                 scores  list of tuples with document names and scores ordered by decreasing score
         """
         query = self.__process_query(query_file)
-        length_vector, n = self.__get_length_vector(last_line_pos)
         scores = self.__calculate_cosine_score(query, length_vector, n)
         return scores
 
@@ -75,30 +74,6 @@ class VectorSpaceModel:
 
         query = Counter(query_list)
         return query
-
-    def __get_length_vector(self, last_line_pos):
-        """
-            Arguments:
-                last_line_pos   the position of the last line in the postings file containing all normalization factors
-
-            Return:
-                length_vector   dictionary containing the normalization factor for each document accessable by document name
-                n               the number of documents in the training data
-        """
-        f = open(self.postings_file, 'r')
-        f.seek(last_line_pos)
-        postings_list = f.readline().split()
-        length_vector = {}
-        n = 0
-        i = 0
-        while i < len(postings_list):
-            doc_name = postings_list[i]
-            length = postings_list[i+1]
-            length_vector[doc_name] = float(length)
-            n += 1
-            i += 2
-        f.close()
-        return (length_vector, n)
 
     def __calculate_cosine_score(self, query, length_vector, n):
         """

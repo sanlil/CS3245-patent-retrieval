@@ -3,8 +3,143 @@ import sys
 import getopt
 from nltk.stem.porter import *
 from VectorSpaceModel import VectorSpaceModel
+from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 
 DEBUG_RESULTS = True
+
+def search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve):
+    """
+    reads in and executes queries with the content of dictionary and postings file
+    and writes the answers to the output_file
+    
+    Arguments:
+        query_file:     path to the queries file, each query written on a new line
+        dictionary_file path to the dictionary file 
+                        (form: "term frequency line-in-postings-file")  
+        postings_file:  path to postings file, each posting corresponding to different dictionary entries
+                        (form: "file_name <space> file_name <space>...")
+        output_file:    path to the file where the output should be written
+        
+    """
+    
+    dictionary, training_path = read_dict(dictionary_file)   
+    line_positions, last_line_pos = get_line_positions(postings_file);
+    patent_info = get_patent_info(patent_info_file)
+    length_vector, n = get_length_vector(postings_file, last_line_pos)
+
+    VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
+    scores = VSM.getScores(query_file, last_line_pos, length_vector, n)
+
+    PRF = PseudoRelevanceFeedback(scores[:5], dictionary, postings_file, line_positions)
+    new_query = PRF.generate_new_query(training_path, n)
+
+    write_to_output_file(output_file, scores)
+    
+    if DEBUG_RESULTS:
+        print_result_info(scores, retrieve, not_retrieve)
+
+def read_dict(dictionary_file):
+    """
+    read dictionary_file and transfers it to the data structure of a python dictionary
+    
+    Arguments:
+        dictionary_file   path to the file where the dictionary is saved
+    
+    Returns:
+        dict structure
+    """
+    
+    d = open(dictionary_file, 'r')
+
+    dictionary = {}
+    for line in d:
+        if "#" in line:
+            training_path = line.split(' ')[1]
+        else:
+            word, freq, postings_line = line.split(' ')
+            dictionary[word] = (freq, postings_line)
+
+    d.close()
+    return dictionary, training_path
+
+# TODO: save this position in the dictionary instead of the line number
+def get_line_positions(postings_file):
+    """
+    reads line positions in memory
+
+    Returns:
+        line_offset (positions) list that contains the starting position of each line in a file 
+        last_line_pos   position for the last line (containing documents and their lengths)
+    """
+    
+    f = open(postings_file, 'rU')
+    line_offset = []
+    offset = 0
+    for line in f:
+        line_offset.append(offset)
+        last_line_pos = offset
+        offset += len(line)
+        
+        # Make sure we support windows-style endings correctly
+        if f.newlines == '\r\n':
+            offset += 1
+    f.close()
+    return (line_offset, last_line_pos)
+
+def get_patent_info(patent_info_file):
+    """
+        Returns:
+            patent_info     dictionary with all patent meta data accessible by patent name
+                            meta data format: [year, cites, ipc, inventor]
+    """
+    patent_info = {}
+    f = open(patent_info_file, 'r')
+    for line in f:
+        info_list = line.split(" | ")
+        doc_name = info_list[0]
+        patent_info[doc_name] = info_list[1:]
+    return patent_info
+
+def get_length_vector(postings_file, last_line_pos):
+    """
+        Arguments:
+            last_line_pos   the position of the last line in the postings file containing all normalization factors
+
+        Return:
+            length_vector   dictionary containing the normalization factor for each document accessable by document name
+            n               the number of documents in the training data
+    """
+    f = open(postings_file, 'r')
+    f.seek(last_line_pos)
+    postings_list = f.readline().split()
+    length_vector = {}
+    n = 0
+    i = 0
+    while i < len(postings_list):
+        doc_name = postings_list[i]
+        length = postings_list[i+1]
+        length_vector[doc_name] = float(length)
+        n += 1
+        i += 2
+    f.close()
+    return (length_vector, n)
+
+def write_to_output_file(output_file, scores):
+    """
+    writes the scores to output_file
+    """
+    f = open(output_file, 'w+')
+    
+    #just for debugging - remove later
+    output_path_parts = output_file.split('/')
+    output_path_parts[len(output_path_parts)-1] = 'debug_' + output_path_parts[len(output_path_parts)-1]
+    debug_output_path = '/'.join(output_path_parts)
+    g = open(debug_output_path, 'w+')
+    
+	# Fred: output has no trailing space, and ends with a newline
+    f.write(' '.join([doc_name for doc_name, score in scores]) + '\n')
+    
+    g.write('\n'.join([doc_name + ' ' + str(score) for doc_name, score in scores])) #just for debugging - remove later	
 
 def print_result_info(scores, retrieve, not_retrieve):
     """
@@ -43,109 +178,6 @@ def print_result_info(scores, retrieve, not_retrieve):
     print 'Incorrectly retrieved %d documents out of %d to avoid (%f%%)' % (nio, nu, nio / float(nu) * 100.0)
     print 'Rankings of false positives:\n\t',
     print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in incorrectly_obtained])
-    
-    
-
-def search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve):
-    """
-    reads in and executes queries with the content of dictionary and postings file
-    and writes the answers to the output_file
-    
-    Arguments:
-        query_file:     path to the queries file, each query written on a new line
-        dictionary_file path to the dictionary file 
-                        (form: "term frequency line-in-postings-file")  
-        postings_file:  path to postings file, each posting corresponding to different dictionary entries
-                        (form: "file_name <space> file_name <space>...")
-        output_file:    path to the file where the output should be written
-        
-    """
-    
-    dictionary = read_dict(dictionary_file)   
-    line_positions, last_line_pos = get_line_positions(postings_file);
-    patent_info = get_patent_info(patent_info_file)
-    ScoreCalculator = VectorSpaceModel(dictionary, postings_file, line_positions)
-    scores = ScoreCalculator.getScores(query_file, last_line_pos)
-    write_to_output_file(output_file, scores)
-    
-    if DEBUG_RESULTS:
-        print_result_info(scores, retrieve, not_retrieve)
-
-def read_dict(dictionary_file):
-    """
-    read dictionary_file and transfers it to the data structure of a python dictionary
-    
-    Arguments:
-        dictionary_file   path to the file where the dictionary is saved
-    
-    Returns:
-        dict structure
-    """
-    
-    d = open(dictionary_file, 'r')
-
-    dictionary = {}
-    for line in d:
-        word, freq, postings_line = line.split(' ')
-        dictionary[word] = (freq, postings_line)
-
-    d.close()
-    return dictionary
-
-# TODO: save this position in the dictionary instead of the line number
-def get_line_positions(postings_file):
-    """
-    reads line positions in memory
-
-    Returns:
-        line_offset (positions) list that contains the starting position of each line in a file 
-        last_line_pos   position for the last line (containing documents and their lengths)
-    """
-    
-    f = open(postings_file, 'rU')
-    line_offset = []
-    offset = 0
-    for line in f:
-        line_offset.append(offset)
-        last_line_pos = offset
-        offset += len(line)
-        
-        # Make sure we support windows-style endings correctly
-        if f.newlines == '\r\n':
-            offset += 1
-    f.close()
-    return (line_offset, last_line_pos)
-
-def write_to_output_file(output_file, scores):
-    """
-    writes the scores to output_file
-    """
-    f = open(output_file, 'w+')
-    
-    #just for debugging - remove later
-    output_path_parts = output_file.split('/')
-    output_path_parts[len(output_path_parts)-1] = 'debug_' + output_path_parts[len(output_path_parts)-1]
-    debug_output_path = '/'.join(output_path_parts)
-    g = open(debug_output_path, 'w+')
-    
-	# Fred: output has no trailing space, and ends with a newline
-    f.write(' '.join([doc_name for doc_name, score in scores]) + '\n')
-    
-    g.write('\n'.join([doc_name + ' ' + str(score) for doc_name, score in scores])) #just for debugging - remove later	
-
-def get_patent_info(patent_info_file):
-    """
-        Returns:
-            patent_info     dictionary with all patent meta data accessible by patent name
-                            meta data format: [year, cites, ipc, inventor]
-    """
-    patent_info = {}
-    f = open(patent_info_file, 'r')
-    for line in f:
-        info_list = line.split(" | ")
-        doc_name = info_list[0]
-        patent_info[doc_name] = info_list[1:]
-    return patent_info
 
 def usage():
     print 'usage: ' + sys.argv[0] + ' -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results -r output-debug-file'
