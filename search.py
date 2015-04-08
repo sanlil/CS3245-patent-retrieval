@@ -4,9 +4,77 @@ import getopt
 from nltk.stem.porter import *
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
+from IPC import IPC
 
 DEBUG_RESULTS = True
 
+def print_result_info(scores, retrieve, not_retrieve, patent_info):
+    """
+    Print some useful information on the query results based on the expected results.
+    Tell us which relevant documents we missed and what are the rankings of the relevant
+    documents we retrieved. Also tell us which irrelevant documents were retrieved,
+    and what are their rankings.
+    """
+    # Create a dictionary of the positions of the documents
+    positional_scores = [(doc, i + 1) for i, (doc, score) in enumerate(scores)]
+    scores_dict = dict(positional_scores)
+    retrieved_docs = set(scores_dict.keys())
+    
+    # Obtain the documents that we should retrieve and those that we shouldn't
+    with open(retrieve) as r, open(not_retrieve) as n:
+        wanted = set([l.rstrip() for l in r.readlines()])
+        unwanted = set([l.rstrip() for l in n.readlines()])
+        
+    print 'Retrieved %d documents' % len(scores)
+    
+    # Print information about the documents that we wanted to retrieve:
+    # Which ones were retrieved, which ones were missed, and for those retrieved,
+    # where did they appear in our ranking.
+    correctly_obtained = wanted & retrieved_docs
+    nco = len(correctly_obtained)
+    nw = len(wanted)
+    print 'Correctly hit %d documents out of %d wanted (%f%%)' % (nco, nw, nco / float(nw) * 100.0)
+    print 'Documents missed: %s\n' % ', '.join(wanted - correctly_obtained)
+    
+    print 'Rankings of hit documents:\n\t',
+    print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in correctly_obtained])
+    
+    print ''
+    
+    # Print information about the documents that we wanted to avoid:
+    # Which ones were retrieved, and what were their ranking
+    incorrectly_obtained = unwanted & retrieved_docs
+    nio = len(incorrectly_obtained)
+    nu = len(unwanted)
+    print 'Incorrectly retrieved %d documents out of %d to avoid (%f%%)' % (nio, nu, nio / float(nu) * 100.0)
+    print 'Rankings of false positives:\n\t',
+    print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in incorrectly_obtained])
+    
+    print ''
+    
+    # Print information about the IPCs of the retrieved patents:
+    # All the IPCs retrieved, and the combined scorings of those IPCs
+    ipc_to_scores = {}
+    ipc_counts = {}
+    for doc, score in scores:
+        ipc = IPC(patent_info[doc][2])
+        #ipc_to_scores[ipc] = ipc_to_scores.get(ipc, 0) + score
+        ipc_to_scores[ipc.subclass()] = ipc_to_scores.get(ipc.subclass(), 0) + score
+        ipc_to_scores[ipc.mainClass()] = ipc_to_scores.get(ipc.mainClass(), 0) + score
+        ipc_to_scores[ipc.section()] = ipc_to_scores.get(ipc.section(), 0) + score
+        
+        #ipc_counts[ipc] = ipc_counts.get(ipc, 0) + 1
+        ipc_counts[ipc.subclass()] = ipc_counts.get(ipc.subclass(), 0) + 1
+        ipc_counts[ipc.mainClass()] = ipc_counts.get(ipc.mainClass(), 0) + 1
+        ipc_counts[ipc.section()] = ipc_counts.get(ipc.section(), 0) + 1
+    
+    sorted_ipcs = sorted(ipc_to_scores.keys(), key=lambda ipc: str(ipc))
+    print 'IPC scores, counts and average contribution:\n\t',
+    for ipc in sorted_ipcs:
+        c = ipc_counts[ipc]
+        s = ipc_to_scores[ipc]
+        print str(ipc) + ':' + ((10 - len(str(ipc))) * ' ') + str(s) + ' / ' + str(c) + ' / ' + str(s / float(c)) + '\n\t',
+    
 def search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve):
     """
     reads in and executes queries with the content of dictionary and postings file
@@ -36,7 +104,7 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     write_to_output_file(output_file, scores)
     
     if DEBUG_RESULTS:
-        print_result_info(scores, retrieve, not_retrieve)
+        print_result_info(scores, retrieve, not_retrieve, patent_info)
 
 def read_dict(dictionary_file):
     """
