@@ -133,8 +133,7 @@ class VectorSpaceModel:
         length_query = math.sqrt(length_query)
 
         for doc_name in all_relevant_documents:
-            # if (length_vector[doc_name]*length_query) != 0:
-                scores[doc_name] = scores[doc_name]/(length_vector[doc_name]*length_query)
+            scores[doc_name] = scores[doc_name]/(length_vector[doc_name]*length_query)
 
         # score_list = [x[0] for x in sorted(scores.items(), key=operator.itemgetter(1), reverse=True)]
         ordered_scores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True);

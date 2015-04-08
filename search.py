@@ -125,9 +125,7 @@ def write_to_output_file(output_file, scores):
     #just for debugging - remove later
     output_path_parts = output_file.split('/')
     output_path_parts[len(output_path_parts)-1] = 'debug_' + output_path_parts[len(output_path_parts)-1]
-    print "output_path_parts",output_path_parts
     debug_output_path = '/'.join(output_path_parts)
-    print "debug_output_path",debug_output_path
     g = open(debug_output_path, 'w+')
     
 	# Fred: output has no trailing space, and ends with a newline
