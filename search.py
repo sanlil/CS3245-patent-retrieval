@@ -102,13 +102,17 @@ def get_line_positions(postings_file):
         last_line_pos   position for the last line (containing documents and their lengths)
     """
     
-    f = open(postings_file, 'r')
+    f = open(postings_file, 'rU')
     line_offset = []
     offset = 0
     for line in f:
         line_offset.append(offset)
         last_line_pos = offset
         offset += len(line)
+        
+        # Make sure we support windows-style endings correctly
+        if f.newlines == '\r\n':
+            offset += 1
     f.close()
     return (line_offset, last_line_pos)
 
