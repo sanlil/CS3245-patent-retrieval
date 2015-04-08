@@ -1,0 +1,4 @@
+languag 3 0
+nation 3 1
+singapor 1 2
+univers 2 3

@@ -42,6 +42,9 @@ class VectorSpaceModel:
         tree = et.parse(query_file)
         root = tree.getroot()
 
+        title_content = ''
+        desc_content = ''
+
         for child in root:
             if child.tag == 'title':
                 title_content = child.text.encode('utf-8')

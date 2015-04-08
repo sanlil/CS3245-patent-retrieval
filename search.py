@@ -26,13 +26,13 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     scores = ScoreCalculator.getScores(query_file, last_line_pos)
     write_to_output_file(output_file, scores)
 
-    print "======= NEW TEST RUN ========="
-    count = 0
-    while count < 20:
-        doc_name, score = scores[count]
-        print doc_name, score, patent_info[doc_name]
-        count += 1
-    print "\n"
+    # print "======= NEW TEST RUN ========="
+    # count = 0
+    # while count < 20:
+    #     doc_name, score = scores[count]
+    #     print doc_name, score, patent_info[doc_name]
+    #     count += 1
+    # print "\n"
 
 def read_dict(dictionary_file):
     """
@@ -80,7 +80,7 @@ def write_to_output_file(output_file, scores):
     writes the scores to output_file
     """
     f = open(output_file, 'w+')
-    g = open('output-debug.txt', 'w+') #just for debugging - remove later
+    g = open(output_debug, 'w+') #just for debugging - remove later
     for doc_name, score in scores:
         f.write(doc_name + ' ')
         g.write(doc_name + ' ' + str(score) + '\n') #just for debugging - remove later
@@ -100,7 +100,7 @@ def get_patent_info(patent_info_file):
     return patent_info
 
 def usage():
-    print 'usage: ' + sys.argv[0] + ' -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results'
+    print 'usage: ' + sys.argv[0] + ' -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results -r output-debug-file'
 
 
 ######################
@@ -110,13 +110,14 @@ def usage():
 query_file = 'queries/q1.xml'
 dictionary_file = 'dictionary.txt'
 postings_file = 'postings.txt'
-output_file = 'output.txt'
 patent_info_file = 'patent_info.txt'
+output_file = 'output.txt'
+output_debug = 'output-debug.txt'
 
 last_dict_line = 0
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'q:d:p:o:')
+    opts, args = getopt.getopt(sys.argv[1:], 'q:d:p:o:r:')
 except getopt.GetoptError, err:
     usage()
     sys.exit(2)
@@ -129,6 +130,8 @@ for o, a in opts:
         postings_file = a
     elif o == '-o':
         output_file = a
+    elif o == '-r':
+        output_debug = a
     else:
         assert False, 'unhandled option'
 
