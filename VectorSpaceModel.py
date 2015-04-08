@@ -6,10 +6,14 @@ from collections import Counter
 from nltk.stem.porter import *
 import xml.etree.ElementTree as et
 
+DBG_USE_STOPS = True
+
 class VectorSpaceModel:
     '''
         Class for calculating score with the Vector Space Model
     '''
+    
+    __stops = nltk.corpus.stopwords.words('english')
 
     def __init__(self, dictionary, postings_file, line_positions):
         self.dictionary = dictionary
@@ -64,7 +68,7 @@ class VectorSpaceModel:
             words = nltk.word_tokenize(sentence)
             for word in words:
                 # skip all words that contain just one item of punctuation
-                if word in string.punctuation: 
+                if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
                     continue
                 # add stemmed word the query_list
                 query_list.append(stemmer.stem(word.lower()))
