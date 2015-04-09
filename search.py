@@ -6,8 +6,11 @@ import xml.etree.ElementTree as et
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
+from math import log
+from collections import Counter
 
 DEBUG_RESULTS = True
+PRINT_IPC = True
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -37,7 +40,7 @@ def print_result_info(scores, retrieve, not_retrieve, patent_info):
     print 'Correctly hit %d documents out of %d wanted (%f%%)' % (nco, nw, nco / float(nw) * 100.0)
     print 'Documents missed: %s\n' % ', '.join(wanted - correctly_obtained)
     
-    print 'Rankings of hit documents:\n\t',
+    print 'Rankings/IPC of hit documents:\n\t',
     print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in correctly_obtained])
     
     print ''
@@ -51,30 +54,12 @@ def print_result_info(scores, retrieve, not_retrieve, patent_info):
     print 'Rankings of false positives:\n\t',
     print '\n\t'.join([doc + ':' + ((20 - len(doc)) * ' ') + str(rank) for doc, rank in positional_scores if doc in incorrectly_obtained])
     
-    print ''
+    if not PRINT_IPC:
+        return
     
-    # Print information about the IPCs of the retrieved patents:
-    # All the IPCs retrieved, and the combined scorings of those IPCs
-    ipc_to_scores = {}
-    ipc_counts = {}
-    for doc, score in scores:
-        ipc = IPC(patent_info[doc][2])
-        #ipc_to_scores[ipc] = ipc_to_scores.get(ipc, 0) + score
-        ipc_to_scores[ipc.subclass()] = ipc_to_scores.get(ipc.subclass(), 0) + score
-        ipc_to_scores[ipc.mainClass()] = ipc_to_scores.get(ipc.mainClass(), 0) + score
-        ipc_to_scores[ipc.section()] = ipc_to_scores.get(ipc.section(), 0) + score
-        
-        #ipc_counts[ipc] = ipc_counts.get(ipc, 0) + 1
-        ipc_counts[ipc.subclass()] = ipc_counts.get(ipc.subclass(), 0) + 1
-        ipc_counts[ipc.mainClass()] = ipc_counts.get(ipc.mainClass(), 0) + 1
-        ipc_counts[ipc.section()] = ipc_counts.get(ipc.section(), 0) + 1
-    
-    sorted_ipcs = sorted(ipc_to_scores.keys(), key=lambda ipc: str(ipc))
-    print 'IPC scores, counts and average contribution:\n\t',
-    for ipc in sorted_ipcs:
-        c = ipc_counts[ipc]
-        s = ipc_to_scores[ipc]
-        print str(ipc) + ':' + ((10 - len(str(ipc))) * ' ') + str(s) + ' / ' + str(c) + ' / ' + str(s / float(c)) + '\n\t',
+    print 'IPC subclasses in the top 50 documents: '
+    top = Counter([str(IPC(patent_info[doc][2]).subclass()) for doc, score in scores[:50]])
+    print top
     
 def search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve):
     """
@@ -249,13 +234,13 @@ def usage():
 # MAIN
 ######################
 
-query_file = 'queries/q2.xml'
+query_file = 'queries/q1.xml'
 dictionary_file = 'dictionary.txt'
 postings_file = 'postings.txt'
 output_file = 'output.txt'
 patent_info_file = 'patent_info.txt'
-retrieve = 'queries/q2-qrels+ve.txt'
-not_retrieve = 'queries/q2-qrels-ve.txt'
+retrieve = 'queries/q1-qrels+ve.txt'
+not_retrieve = 'queries/q1-qrels-ve.txt'
 
 last_dict_line = 0
 

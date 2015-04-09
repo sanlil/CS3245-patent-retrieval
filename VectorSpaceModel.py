@@ -12,12 +12,13 @@ class VectorSpaceModel:
         Class for calculating score with the Vector Space Model
     '''
     
-    __stops = nltk.corpus.stopwords.words('english')
+    __stops = set(nltk.corpus.stopwords.words('english'))
 
     def __init__(self, dictionary, postings_file, line_positions):
         self.dictionary = dictionary
         self.postings_file = postings_file
         self.line_positions = line_positions
+        #self.__stops |= {'mechanism', 'technology', 'technique', 'using', 'means', 'apparatus', 'method', 'system'}
 
     def getScores(self, query, last_line_pos, length_vector, n):
         """
