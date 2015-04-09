@@ -19,9 +19,9 @@ class VectorSpaceModel:
         self.postings_file = postings_file
         self.line_positions = line_positions
 
-    def getScores(self, query, last_line_pos, length_vector, n):
+    def get_scores(self, query, last_line_pos, length_vector, n):
         """
-            public class for calculating scores with the vector space model
+            public method for calculating scores with the vector space model
 
             Return:
                 scores  list of tuples with document names and scores ordered by decreasing score
@@ -47,10 +47,10 @@ class VectorSpaceModel:
         for sentence in sentences:
             words = nltk.word_tokenize(sentence)
             for word in words:
-                # skip all words that contain just one item of punctuation
+                # skip all words that contain just one item of punctuation or is a stopword
                 if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
                     continue
-                # add stemmed word the query_list
+                # add stemmed word to query_list
                 query_list.append(stemmer.stem(word.lower()))
 
         # count the frequency of each term

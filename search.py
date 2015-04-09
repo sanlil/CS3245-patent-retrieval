@@ -7,7 +7,7 @@ from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
 
-DEBUG_RESULTS = True
+DEBUG_RESULTS = False
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -95,17 +95,18 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     line_positions, last_line_pos = get_line_positions(postings_file);
     patent_info = get_patent_info(patent_info_file)
     length_vector, n = get_length_vector(postings_file, last_line_pos)
-    org_query = extract_query_words(query_file)
+    org_query_str = extract_query_words(query_file)
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
-    first_scores = VSM.getScores(org_query, last_line_pos, length_vector, n)
+    first_scores = VSM.get_scores(org_query_str, last_line_pos, length_vector, n)
+    # write_to_output_file(output_file, first_scores)
 
-    PRF = PseudoRelevanceFeedback(first_scores[:10], dictionary, postings_file, line_positions)
-    new_query = PRF.generate_new_query(training_path, n)
-    query = org_query + ' ' + new_query
+    no_of_documents = 10
+    no_of_terms = 10
+    PRF = PseudoRelevanceFeedback(dictionary, postings_file, line_positions, training_path, n)
+    new_query_word_list = PRF.generate_new_query(first_scores[:no_of_documents], no_of_terms, org_query_str)
 
-    second_scores = VSM.getScores(query, last_line_pos, length_vector, n)
-
+    second_scores = VSM.get_scores(query_str, last_line_pos, length_vector, n)
     write_to_output_file(output_file, second_scores)
     
     if DEBUG_RESULTS:
