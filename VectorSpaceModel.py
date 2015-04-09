@@ -109,8 +109,6 @@ class VectorSpaceModel:
            list of tuples (doc_name, tf) corresponding to the word
         """
 
-        no_of_postings_parameters = 4
-
         # dictionary contains word
         if word in self.dictionary.keys():
             (freq, postings_line) = self.dictionary[word]
@@ -123,7 +121,7 @@ class VectorSpaceModel:
                 doc_name = postings_list[count]
                 tf = postings_list[count+1]
                 doc_tf_list.append( ( doc_name, float(tf) ) )
-                count += no_of_postings_parameters
+                count += 3 + int(postings_list[count+2])
             f.close()
             return doc_tf_list
         # dictionary does not contain word

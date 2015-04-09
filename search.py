@@ -85,16 +85,16 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
     first_scores = VSM.getScores(org_query, last_line_pos, length_vector, n)
 
-    PRF = PseudoRelevanceFeedback(first_scores[:10], dictionary, postings_file, line_positions)
-    new_query = PRF.generate_new_query(training_path, n)
-    query = org_query + ' ' + new_query
+    #PRF = PseudoRelevanceFeedback(first_scores[:10], dictionary, postings_file, line_positions)
+    #new_query = PRF.generate_new_query(training_path, n)
+    #query = org_query + ' ' + new_query
 
-    second_scores = VSM.getScores(query, last_line_pos, length_vector, n)
+    #second_scores = VSM.getScores(query, last_line_pos, length_vector, n)
 
-    write_to_output_file(output_file, second_scores)
+    write_to_output_file(output_file, first_scores)
     
     if DEBUG_RESULTS:
-        print_result_info(second_scores, retrieve, not_retrieve, patent_info)
+        print_result_info(first_scores, retrieve, not_retrieve, patent_info)
 
 def read_dict(dictionary_file):
     """
@@ -235,10 +235,10 @@ def usage():
 ######################
 
 query_file = 'queries/q1.xml'
-dictionary_file = 'dictionary.txt'
-postings_file = 'postings.txt'
+dictionary_file = 'dictionary2.txt'
+postings_file = 'postings2.txt'
 output_file = 'output.txt'
-patent_info_file = 'patent_info.txt'
+patent_info_file = 'patent_info2.txt'
 retrieve = 'queries/q1-qrels+ve.txt'
 not_retrieve = 'queries/q1-qrels-ve.txt'
 

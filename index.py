@@ -9,332 +9,122 @@ import re
 from nltk.stem.porter import *
 import xml.etree.ElementTree as et
 
-
-def indexing(training_path, postings_file, dictionary_file, patent_info_file):
-    """
-    reads the training data and creates a postings and a dictionary file
+def indexing2(training_path, postings_file, dictionary_file, patent_info_file):
+    pats = sorted(os.listdir(training_path))
     
-    Arguments:
-        training_path       folder containing all training data files to be used
-        dictionary_file:    path to file containing a dictionary in the end that is written down in a file 
-                            (form: "term frequency line-in-postings-file(-->'pointer')")    
-        postings_file:      path to file containing all postings belonging to the different dictionary entries
-                            form: "file_name <space> file_name <space>..."
-                            the pre-last line contains the names of all given documents in the training data
-                            the last line contains the length vector (all normalization factors from 0 until the highest document ID)
-        patent_info_file    path to file containing meta data for patents
-                            form: "patentNo | 1st Inventor | Cited by Count | IPC Primary | Publication Year"
-    """
-
-    word_list = read_training_data(training_path, patent_info_file)
-    sorted_word_list = sort_alphabetically(word_list)
-
-    consolidate_list(sorted_word_list, postings_file, dictionary_file, training_path)
-
-
-def sort_alphabetically(word_list):
-    return sorted(word_list,key=lambda x: x[0])
-
-
-def read_training_data(training_path, patent_info_file):
-    """
-    reads all patents that can be found in the given folder of training data,
-	tokenizes their content, stems the words 
-	and delivers a list that provides all found words with file name where they are found
-
-    additionally it creates a patent_info_file that contains meta data about the patent
-
-    Arguments:
-        training_path
-        patent_info_file    path to file containing meta data for patents
-    
-    Returns:
-		word_list 	list containing stemmed words together with the file name where it occurs
-        
-    """
     pi = open(patent_info_file, 'w')
-    word_list = []
+    postings = dict()
+    doc_lengths = dict()
+    for pat in pats:
+        this_doc_length = dict()
+        tree = et.parse(os.path.join(training_path, pat))
+        
+        pat_id = os.path.splitext(pat)[0]
+        
+        root = tree.getroot()
+        title_content = ""
+        abstract_content = ""
 
-    for subdir, dirs, files in os.walk(training_path):
-		# read in every file in the training data folder
-        count = 0;
-        for file in files:
-            fileName = file.split('.')[0]
-            # if count > 1:
-            #     break
-            # count += 1;
-            tree = et.parse(training_path + file)
-            root = tree.getroot()
-            title_content = ""
-            abstract_content = ""
+        year = ""
+        cites = "0"
+        ipc = ""
+        inventor = ""
+        content = ""
+        for child in root:
+            # extract patent content
+            if child.get('name') == 'Title':
+                content += child.text.encode('utf-8') + " "
 
-            year = ""
-            cites = "0"
-            ipc = ""
-            inventor = ""
+            if child.get('name') == 'Abstract':
+                content += child.text.encode('utf-8') + " "
 
-            for child in root:
-                # extract patent content
-                if child.get('name') == 'Title':
-                    title_content += child.text.encode('utf-8') + " "
+            # extract patent info (meta data)
+            if child.get('name') == 'Publication Year':
+                year = child.text.encode('utf-8').strip()
 
-                if child.get('name') == 'Abstract':
-                    abstract_content += child.text.encode('utf-8') + " "
+            if child.get('name') == 'Cited By Count':
+                cites = child.text.encode('utf-8').strip()
 
-                # extract patent info (meta data)
-                if child.get('name') == 'Publication Year':
-                    year = child.text.encode('utf-8').strip()
+            if child.get('name') == 'IPC Primary':
+                ipc = child.text.encode('utf-8').strip()
 
-                if child.get('name') == 'Cited By Count':
-                    cites = child.text.encode('utf-8').strip()
+            if child.get('name') == '1st Inventor':
+                inventor = child.text.encode('utf-8').strip()
 
-                if child.get('name') == 'IPC Primary':
-                    ipc = child.text.encode('utf-8').strip()
+        pi.write(pat_id + " | " + year + " | " + cites +  " | " + ipc + " | " + inventor + "\n")
+        
+        stemmer = PorterStemmer()
+        # remove non utf-8 characters, http://stackoverflow.com/a/20078869
+        content = re.sub(r'[^\x00-\x7F]+',' ', content)
 
-                if child.get('name') == '1st Inventor':
-                    inventor = child.text.encode('utf-8').strip()
-
-            pi.write(fileName + " | " + year + " | " + cites +  " | " + ipc + " | " + inventor + "\n")
-
-            title_word_list = create_word_patent_list(title_content, fileName, True)
-            abstract_word_list = create_word_patent_list(abstract_content, fileName, False)
-
-            word_list.extend(title_word_list)
-            word_list.extend(abstract_word_list)
-
+        sentences = nltk.sent_tokenize(content)
+        i = 0
+        occurences = dict()
+        for sentence in sentences:
+            # tokenize sentences in words
+            words = nltk.word_tokenize(sentence)
+            for word in words:
+                # skip all words that contain just one item of punctuation
+                if word in string.punctuation: 
+                    continue
+                # add stemmed word and file name containing the word to word_list
+                stemmed = word_stemming(word.encode('utf-8'), stemmer)
+                if stemmed in occurences:
+                    occurences[stemmed].append(i)
+                else:
+                    occurences[stemmed] = [i]
+                
+                this_doc_length[stemmed] = this_doc_length.get(stemmed, 0) + 1
+                
+                i += 1
+        
+        for word, positions in occurences.iteritems():
+            if word in postings:
+                postings[word].append((pat_id, positions))
+            else:
+                postings[word] = [(pat_id, positions)]
+        
+        sumsq = 0
+        for tok, tf in this_doc_length.iteritems():
+			log_tf = 0 if tf == 0 else 1 + math.log(tf)
+			sumsq += log_tf * log_tf
+            
+        doc_lengths[pat_id] = sumsq
+        
     pi.close()
-
-    return word_list
-
-def create_word_patent_list(content, fileName, isTitle):
-    """
-        process extracted content by tokenizing it into words, stemming and stripping punctuation.
-
-        Arguments:
-            content     a string sequence
-            fileName    the file containing the content
-
-        Return:
-            word_list   a list containing the word-file name pairs
-    """
-    word_list = []
-    stemmer = PorterStemmer()
-    # remove non utf-8 characters, http://stackoverflow.com/a/20078869
-    content = re.sub(r'[^\x00-\x7F]+',' ', content)
-
-    sentences = nltk.sent_tokenize(content)
-    for sentence in sentences:
-        # tokenize sentences in words
-        words = nltk.word_tokenize(sentence)
-        for word in words:
-            # skip all words that contain just one item of punctuation
-            if word in string.punctuation: 
-                continue
-            # add stemmed word and file name containing the word to word_list
-            word_list.append([word_stemming(word.encode('utf-8'), stemmer), fileName, isTitle, (not isTitle)])
-
-    return word_list
-
-
-def word_stemming(old_word, stemmer):
-    return stemmer.stem(old_word.lower())
-
-
-def consolidate_list(sorted_word_list, postings_file, dictionary_file, training_path):
-    """
-    consolidates the given word_list 
-	by summing up same words and uniting their list of occurrences. 
-	writes result to provided dictionary and postings file
-    furthermore: calculation of normalization factors (lengths) per document number
-            written down as last line in postings_file
-	
-	Arguments:
-		sorted_word_list	alphabetically sorted double list of words and their occurrence in files
-		postings_file		file name + path for posting list results
-							will contain all postings belonging to the different dictionary entries
-		dictionary_file		file name + path for dictionary results
-							will contain a dictionary that is written down in a file 
-    """
+    write_dict_postings(postings, postings_file, dictionary_file, training_path)    
+    
+def write_dict_postings(data, postings_file, dictionary_file, training_path):
     f = open(postings_file, 'w')
     d = open(dictionary_file, 'w')
 
     line_index = 0
     current_word = ""
     current_word_freq = {}
-    current_word_isTitle = {}
-    current_word_isAbstract = {}
-    # dictonary for storing the length of the documents
     doc_lengths = {}
-    for word, fileName, isTitle, isAbstract in sorted_word_list:
-		# first case - file number can be added to posting list anyway
-        if current_word == "":
-            current_word = word
-            current_word_freq[fileName] = 1
-            current_word_isTitle[fileName] = isTitle
-            current_word_isAbstract[fileName] = isAbstract
-		# word occurs again - add file number to current posting list
-        elif word == current_word:
-            if not fileName in current_word_freq.keys():
-                current_word_freq[fileName] = 1
-                current_word_isTitle[fileName] = isTitle
-                current_word_isAbstract[fileName] = isAbstract
-            else:
-                current_word_freq[fileName] += 1
-                current_word_isTitle[fileName] = current_word_isTitle[fileName] or isTitle
-                current_word_isAbstract[fileName] = current_word_isAbstract[fileName] or isAbstract
-		# a new word
-        else:
-            # write previous word to the dictionary file
-            write_to_dict(d, current_word, current_word_freq, line_index)
-            # write posting list to postings file
-            doc_lengths = write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, current_word_isAbstract)
-			
-            # clear dictionaries
-            current_word_freq = {}
-            current_word_isTitle = {}
-            current_word_isAbstract = {}
+    for word, postings in data.iteritems():
+        doc_freq = len(postings)
+        d.write(word + ' ' + str(doc_freq) + ' ' + str(line_index) + '\n')
+        for pat, positions in postings:
+            tf = len(positions)
+            log_tf = 0 if tf == 0 else 1 + math.log(tf)
+            doc_lengths[pat] = doc_lengths.get(pat, 0.0) + log_tf * log_tf
+            
+            f.write(pat + ' ' + str(log_tf) + ' ' + str(len(positions)) + ' ')
+            f.write(' '.join([str(p) for p in positions]) + ' ')
+        f.write('\n')    
+        line_index += 1
 
-            # save values of the new term
-            current_word = word
-            current_word_freq[fileName] = 1
-            current_word_isTitle[fileName] = isTitle
-            current_word_isAbstract[fileName] = isAbstract
-            line_index += 1
+    for doc, length in doc_lengths.iteritems():
+        f.write(doc + ' ' + str(length) + ' ')
 
-    # write last word and postings to files        
-    write_to_dict(d, current_word, current_word_freq, line_index)
-    doc_lengths = write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, current_word_isAbstract)
-
-    write_doc_lengths(f, doc_lengths)
-    write_training_path(d, training_path)
+    d.write("# " + training_path)
 
     f.close()
     d.close()
 
-
-def write_to_dict(d, current_word, current_word_freq, line_index):
-    '''
-        write word, frequency of posting entries and pointer to posting line to the dictionary file
-    '''
-    d.write(current_word+" "+str(len(current_word_freq))+" "+str(line_index)+"\n")
-
-
-def write_to_postings(f, current_word_freq, doc_lengths, current_word_isTitle, current_word_isAbstract):
-    """
-    writes the postings to the posting file and updates the document length vector with the new values
-
-    Arguments:
-        f                   postings file
-        current_word_freq   the document frequency for the current term accessable by document number
-        doc_lengths: list   containing normalization factors accessable by document number
-        current_word_isTitle
-        current_word_isAbstract
-    
-    Returns:
-        doc_lengths: the updated length vector
-    """
-    current_postings_keys = current_word_freq.iterkeys()
-    for docName in current_postings_keys:
-        log_tf = get_tf_value(current_word_freq, docName)
-        isTitle = booleanToNo(current_word_isTitle[docName])
-        isAbstract = booleanToNo(current_word_isAbstract[docName])
-        f.write(str(docName)+" "+str(log_tf)+" "+isTitle+" "+isAbstract+" ")
-
-        # update the document length vector with the new tf value
-        doc_lengths = add_value_to_doc_length(doc_lengths, docName, log_tf)
-    f.write("\n")
-    return doc_lengths
-
-
-def booleanToNo(boolean_value):
-    if boolean_value:
-        return "1"
-    else:
-        return "0"
-
-
-def get_tf_value(current_word_freq, docName):
-    """
-        applies sublinear tf scaling
-    """
-    if current_word_freq[docName] == 0:
-        return 0
-    else:
-        return 1 + math.log10(current_word_freq[docName])
-
-
-def add_value_to_doc_length(doc_lengths, docName, tf):
-    """
-    adds the new tf value to the power of two to the calculation of the document length
-
-    Arguments:
-        doc_lengths: dictionary containing normalization factors accessable by document number
-        docNo: document number
-        tf: the log-tf value to be added
-    
-    Returns:
-        doc_lengths: the updated length vector
-    """
-    if docName in doc_lengths.keys():
-        doc_lengths[docName] += math.pow(tf, 2)
-    else:
-        doc_lengths[docName] = math.pow(tf, 2)
-    return doc_lengths
-
-
-def write_doc_lengths(f, doc_lengths):
-    """
-        write document lengths to file
-    """
-    count = 0;
-    for subdir, dirs, files in os.walk(training_path):
-        for fileName in files:
-            # if count > 1:
-            #     break
-            # count += 1
-            fileName = fileName.split('.')[0]
-            sqrt_length_val = math.sqrt(doc_lengths[fileName])
-            f.write(fileName + " " + str(sqrt_length_val) + " ")
-
-def write_training_path(d, training_path):
-    '''
-        write the path to the training data at the bottom of the dictionary file to use for relevance feedback
-    '''
-    d.write("# "+training_path)
-
-def calculate_length_vector(dictionary, postings_file, line_positions, all_postings, n):
-    """
-    calculates the normalization factor for each document
-
-    Arguments:
-        dictionary:     dict structure for all terms (in memory) 
-        postings_file:  contains all postings belonging to the different dictionary entries
-        line_positions
-        all_postings:
-        n:              number of documents in training data
-
-    Returns:
-        length_vector   array that contains the normalization factor for each document accessable by document number
-    """
-
-    # list of n normalization factors initialized with 0 - length: highest document number
-    length_vector = [0 for y in range(int(all_postings[n-1])+1)]
-
-    keys = dictionary.keys()
-
-    # loop through all terms in the dictionary
-    for i in range(len(dictionary)):
-        term = keys[i]
-        term_postings = get_postings(term, dictionary, postings_file, line_positions)
-
-        # reorder tf in postings to length vector, parallelly calculating length
-        for (docNo, tf) in term_postings:
-            length_vector[docNo] += math.pow(tf,2)
-
-    length_vector = [math.sqrt(x) for x in length_vector]
-
-    return length_vector
-
+def word_stemming(old_word, stemmer):
+    return stemmer.stem(old_word.lower())
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file -q patent-info-file"
@@ -345,9 +135,9 @@ def usage():
 ######################
 
 training_path = "patsnap-corpus/"
-dictionary_file = "dictionary.txt"
-postings_file = "postings.txt"
-patent_info_file = "patent_info.txt"
+dictionary_file = "dictionary2.txt"
+postings_file = "postings2.txt"
+patent_info_file = "patent_info2.txt"
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'i:d:p:q:')
@@ -368,4 +158,4 @@ for o, a in opts:
     else:
         assert False, "unhandled option"
 
-indexing(training_path, postings_file, dictionary_file, patent_info_file)
+indexing2(training_path, postings_file, dictionary_file, patent_info_file)
