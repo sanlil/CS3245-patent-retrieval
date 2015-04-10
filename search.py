@@ -13,8 +13,10 @@ from IPC import IPC
 from math import log
 from collections import Counter
 
-DEBUG_RESULTS = True
-PRINT_IPC = True
+DEBUG_RESULTS = False
+PRINT_IPC = False
+DBG_USE_STOPS = True
+USE_PRF = True
 
 stops = nltk.corpus.stopwords.words('english')
 
@@ -90,19 +92,20 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     org_query = process_query(org_query_str)
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
-    first_scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
-    # write_to_output_file(output_file, first_scores)
+    scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
 
-    no_of_documents = 10
-    no_of_terms = 10
-    PRF = PseudoRelevanceFeedback(dictionary, postings_file, line_positions, training_path, n)
-    new_query = PRF.generate_new_query(first_scores[:no_of_documents], no_of_terms, org_query_str)
+    if USE_PRF:
+        no_of_documents = 10
+        no_of_terms = 10
+        PRF = PseudoRelevanceFeedback(dictionary, postings_file, line_positions, training_path, n)
+        new_query = PRF.generate_new_query(scores[:no_of_documents], no_of_terms, org_query_str)
 
-    second_scores = VSM.get_scores(new_query, last_line_pos, length_vector, n)
-    write_to_output_file(output_file, second_scores)
+        scores = VSM.get_scores(new_query, last_line_pos, length_vector, n)
     
     if DEBUG_RESULTS:
-        print_result_info(second_scores, retrieve, not_retrieve, patent_info)
+        print_result_info(scores, retrieve, not_retrieve, patent_info)
+    
+    write_to_output_file(output_file, scores)
 
 def read_dict(dictionary_file):
     """
@@ -275,13 +278,13 @@ def usage():
 # MAIN
 ######################
 
-query_file = 'queries/q1.xml'
+query_file = 'queries/q2.xml'
 dictionary_file = 'dictionary.txt'
 postings_file = 'postings.txt'
 output_file = 'output.txt'
 patent_info_file = 'patent_info.txt'
-retrieve = 'queries/q1-qrels+ve.txt'
-not_retrieve = 'queries/q1-qrels-ve.txt'
+retrieve = 'queries/q2-qrels+ve.txt'
+not_retrieve = 'queries/q2-qrels-ve.txt'
 
 last_dict_line = 0
 

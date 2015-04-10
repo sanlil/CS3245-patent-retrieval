@@ -119,7 +119,6 @@ class PseudoRelevanceFeedback:
         stemmer = PorterStemmer()
         query_weights = {}
         for term, count in term_count.items():
-            # print "term",term
             stemmed_term = stemmer.stem(term)
             weight = self.__get_weight_query_term(stemmed_term, count)
             query_weights[term] = weight

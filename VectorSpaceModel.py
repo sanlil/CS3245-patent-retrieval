@@ -5,8 +5,6 @@ import operator
 from collections import Counter
 from nltk.stem.porter import *
 
-DBG_USE_STOPS = True
-
 class VectorSpaceModel:
     '''
         Class for calculating score with the Vector Space Model
@@ -31,32 +29,32 @@ class VectorSpaceModel:
         scores = self.__calculate_cosine_score(query, length_vector, n)
         return scores
 
-    def __process_query(self, query):
-        """
-        Tokenize and stem the query words and compute the frequency of each word in the query list
+    # def __process_query(self, query):
+    #     """
+    #     Tokenize and stem the query words and compute the frequency of each word in the query list
 
-        Arguments:
-            query           string of query words
+    #     Arguments:
+    #         query           string of query words
 
-        Returns: 
-            query_count     a dictionary with the stemmed words and the its frequency in the query
-        """
-        stemmer = PorterStemmer()
+    #     Returns: 
+    #         query_count     a dictionary with the stemmed words and the its frequency in the query
+    #     """
+    #     stemmer = PorterStemmer()
         
-        query_list = []
-        sentences = nltk.sent_tokenize(query)
-        for sentence in sentences:
-            words = nltk.word_tokenize(sentence)
-            for word in words:
-                # skip all words that contain just one item of punctuation or is a stopword
-                if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
-                    continue
-                # add stemmed word to query_list
-                query_list.append(stemmer.stem(word.lower()))
+    #     query_list = []
+    #     sentences = nltk.sent_tokenize(query)
+    #     for sentence in sentences:
+    #         words = nltk.word_tokenize(sentence)
+    #         for word in words:
+    #             # skip all words that contain just one item of punctuation or is a stopword
+    #             if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
+    #                 continue
+    #             # add stemmed word to query_list
+    #             query_list.append(stemmer.stem(word.lower()))
 
-        # count the frequency of each term
-        query_count = Counter(query_list)
-        return query_count
+    #     # count the frequency of each term
+    #     query_count = Counter(query_list)
+    #     return query_count
 
     def __calculate_cosine_score(self, query, length_vector, n):
         """
