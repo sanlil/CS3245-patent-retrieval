@@ -1,13 +1,20 @@
 #!/usr/bin/python
 import sys
 import getopt
-from nltk.stem.porter import *
+import nltk
+import string
+import math
 import xml.etree.ElementTree as et
+from collections import Counter
+from nltk.stem.porter import *
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
 
-DEBUG_RESULTS = False
+DEBUG_RESULTS = True
+DBG_USE_STOPS = True
+
+stops = nltk.corpus.stopwords.words('english')
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -96,17 +103,18 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     patent_info = get_patent_info(patent_info_file)
     length_vector, n = get_length_vector(postings_file, last_line_pos)
     org_query_str = extract_query_words(query_file)
+    org_query = process_query(org_query_str)
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
-    first_scores = VSM.get_scores(org_query_str, last_line_pos, length_vector, n)
+    first_scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
     # write_to_output_file(output_file, first_scores)
 
     no_of_documents = 10
     no_of_terms = 10
     PRF = PseudoRelevanceFeedback(dictionary, postings_file, line_positions, training_path, n)
-    new_query_word_list = PRF.generate_new_query(first_scores[:no_of_documents], no_of_terms, org_query_str)
+    new_query = PRF.generate_new_query(first_scores[:no_of_documents], no_of_terms, org_query_str)
 
-    second_scores = VSM.get_scores(query_str, last_line_pos, length_vector, n)
+    second_scores = VSM.get_scores(new_query, last_line_pos, length_vector, n)
     write_to_output_file(output_file, second_scores)
     
     if DEBUG_RESULTS:
@@ -224,6 +232,39 @@ def extract_query_words(query_file):
             query_content += ' '.join(desc.split()[4:])
 
     return query_content
+
+def process_query(query_str):
+    """
+    Tokenize and stem the query words and compute the frequency of each word in the query list
+
+    Arguments:
+        query_str       string of query words
+
+    Returns: 
+        query_count     a dictionary with the stemmed words and the its frequency in the query
+    """
+    stemmer = PorterStemmer()
+    
+    query_list = []
+    sentences = nltk.sent_tokenize(query_str)
+    for sentence in sentences:
+        words = nltk.word_tokenize(sentence)
+        for word in words:
+            # skip all words that contain just one item of punctuation or is a stopword
+            if word in string.punctuation or (DBG_USE_STOPS and word in stops): 
+                continue
+            # add stemmed word to query_list
+            query_list.append(stemmer.stem(word.lower()))
+
+    # count the frequency of each term
+    query_count = Counter(query_list)
+
+    # set the tf value for each term
+    query_weight = {}
+    for query_term, term_count in query_count.items():
+        query_weight[query_term] = 1 + math.log10(term_count)
+
+    return query_weight
 
 def write_to_output_file(output_file, scores):
     """

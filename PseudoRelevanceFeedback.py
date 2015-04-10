@@ -36,7 +36,7 @@ class PseudoRelevanceFeedback:
         """
         content = self.__get_document_content(old_results)
         top_query_terms, old_query_list = self.__get_new_terms(content, old_query_str, no_of_terms)
-        query_weights = self.__get_new_query_weights(top_query_terms, old_query_list)
+        query_weights = self.__get_query_tf(top_query_terms, old_query_list)
         return query_weights
 
     def __get_document_content(self, old_results):
@@ -152,12 +152,18 @@ class PseudoRelevanceFeedback:
         else:
             return 0
 
-    def __get_new_query_weights(self, new_query_terms, old_query_terms):
+    def __get_query_tf(self, new_query_terms, old_query_terms):
+        """
+            Set tf values for the new terms to 0.5 and for the old ones to 1.5
+            Reference: http://ceur-ws.org/Vol-1176/CLEF2010wn-ImageCLEF-Larson2010.pdf
+        """
         query_weights = {}
         for term in new_query_terms:
             query_weights[term] = 0.5
         for term in old_query_terms:
             query_weights[term] = 1.5
         return query_weights
+
+
             
 

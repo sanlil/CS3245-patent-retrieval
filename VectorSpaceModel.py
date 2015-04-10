@@ -26,8 +26,8 @@ class VectorSpaceModel:
             Return:
                 scores  list of tuples with document names and scores ordered by decreasing score
         """
-        query_count = self.__process_query(query)
-        scores = self.__calculate_cosine_score(query_count, length_vector, n)
+        # query_count = self.__process_query(query)
+        scores = self.__calculate_cosine_score(query, length_vector, n)
         return scores
 
     def __process_query(self, query):
@@ -73,8 +73,8 @@ class VectorSpaceModel:
         scores = {}
         length_query = 0
 
-        for query_term, term_count in query.items():
-            weight_query = self.__get_weight_query_term(query_term, term_count, n)
+        for query_term, term_tf in query.items():
+            weight_query = self.__get_weight_query_term(query_term, term_tf, n)
             length_query += math.pow(weight_query, 2)
             term_postings = self.__get_postings(query_term)
             all_relevant_documents = []
@@ -129,14 +129,14 @@ class VectorSpaceModel:
         else:
             return []
 
-    def __get_weight_query_term(self, term, term_count, n):
+    def __get_weight_query_term(self, term, term_tf, n):
         """
         calculates the weight of a term in a query by the pattern tf.idf
         if term is not defined in dictionary => weight_query = 0
 
         Arguments:
             term        term in query to calculate for
-            term_count  the number of times the term occures in the query
+            term_tf     the tf value for the term
             n           number of documents in training data
 
         Returns:
@@ -144,13 +144,13 @@ class VectorSpaceModel:
         """
 
         # calculate tf in query
-        log_tf = 1 + math.log10(term_count)
+        # log_tf = 1 + math.log10(term_count)
 
         if term in self.dictionary.keys():
             (freq, postings_line) = self.dictionary[term]
             # calculate idf
             idf = math.log10(float(n)/float(freq))
-            return log_tf * idf
+            return term_tf * idf
         else:
             return 0
 
