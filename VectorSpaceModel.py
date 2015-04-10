@@ -20,6 +20,55 @@ class VectorSpaceModel:
         self.line_positions = line_positions
         #self.__stops |= {'mechanism', 'technology', 'technique', 'using', 'means', 'apparatus', 'method', 'system'}
 
+    def getScoresPhrases(self, phrases, last_line_pos, length_vector, n):
+        query_count = self.__process_phrasal(phrases)
+        scores = self.__calculate_cosine_phrasal(query_count, length_vector, n)
+        return scores
+    
+    def __process_phrasal(self, phrases):
+        phrase_list = []
+        for phrase in phrases:
+            stemmed_phrase = []
+            words = nltk.word_tokenize(sentence)
+            for word in words:
+                # skip all words that contain just one item of punctuation
+                if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
+                    continue
+                # add stemmed word the query_list
+                stemmed_phrase.append(stemmer.stem(word.lower()))
+            phrase_list.append(' '.join(stemmed_phrase))
+
+        # count the frequency of each term
+        query_count = Counter(phrase_list)
+        return query_count
+    
+    def __calculate_cosine_phrasal(query_count, length_vector, n):
+        scores = {}
+        length_query = 0
+
+        for query_phrase, phrase_count in query.items():
+            weight_query = self.__get_weight_query_term(query_term, term_count, n)
+            length_query += math.pow(weight_query, 2)
+            term_postings = self.__get_postings(query_term)
+            all_relevant_documents = []
+
+            for (doc_name, tf) in term_postings:
+                all_relevant_documents.append(doc_name)
+                weight_d_t = float(tf)
+                if doc_name in scores.keys():
+                    scores[doc_name] += weight_d_t * weight_query
+                else:
+                    scores[doc_name] = weight_d_t * weight_query
+        
+        length_query = math.sqrt(length_query)
+
+        for doc_name in all_relevant_documents:
+            scores[doc_name] = scores[doc_name]/(length_vector[doc_name]*length_query)
+
+        # score_list = [x[0] for x in sorted(scores.items(), key=operator.itemgetter(1), reverse=True)]
+        ordered_scores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True);
+        return ordered_scores
+    
     def getScores(self, query, last_line_pos, length_vector, n):
         """
             public class for calculating scores with the vector space model
