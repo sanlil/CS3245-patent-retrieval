@@ -1,12 +1,8 @@
 #!/usr/bin/python
 import sys
 import getopt
-import nltk
-import string
-import math
-import xml.etree.ElementTree as et
-from collections import Counter
 from nltk.stem.porter import *
+import xml.etree.ElementTree as et
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
@@ -15,10 +11,6 @@ from collections import Counter
 
 DEBUG_RESULTS = True
 PRINT_IPC = True
-DBG_USE_STOPS = True
-
-stops = set(nltk.corpus.stopwords.words('english'))
-#self.__stops |= {'mechanism', 'technology', 'technique', 'using', 'means', 'apparatus', 'method', 'system'}
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -68,7 +60,47 @@ def print_result_info(scores, retrieve, not_retrieve, patent_info):
     print 'IPC subclasses in the top 50 documents: '
     top = Counter([str(IPC(patent_info[doc][2]).subclass()) for doc, score in scores[:50]])
     print top
-    
+
+def print_patent_info(retrieve, not_retrieve, patent_info):
+	"""
+	print out patent_info of relevant and irrelevant patents
+	"""
+	# Obtain the documents that we should retrieve and those that we shouldn't
+	with open(retrieve) as r, open(not_retrieve) as n:
+		wanted = set([l.rstrip() for l in r.readlines()])
+		unwanted = set([l.rstrip() for l in n.readlines()])
+
+	publication_years_rel = {}
+	print "Relevant documents:"
+	for patentNo in wanted:
+		publication_year = patent_info[patentNo][0]
+		count_citation = patent_info[patentNo][1]
+		if publication_year in publication_years_rel.keys():
+			publication_years_rel[publication_year] += 1
+		else:
+			publication_years_rel[publication_year] = 1
+
+		#print patentNo, "\t\t", publication_year, count_citation
+
+	for key in sorted(publication_years_rel.keys()):
+		print key, publication_years_rel[key]
+	print "---"
+
+	publication_years_irrel = {}
+	print "Irrelevant documents:"
+	for patentNo in unwanted:
+		publication_year = patent_info[patentNo][0]
+		count_citation = patent_info[patentNo][1]
+		if publication_year in publication_years_irrel.keys():
+			publication_years_irrel[publication_year] += 1
+		else:
+			publication_years_irrel[publication_year] = 1
+
+		#print patentNo, "\t\t", patent_info[patentNo][0], patent_info[patentNo][1]  
+
+	for key in sorted(publication_years_irrel.keys()):
+		print key, publication_years_irrel[key]
+
 def search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve):
     """
     reads in and executes queries with the content of dictionary and postings file
@@ -88,28 +120,25 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     line_positions, last_line_pos = get_line_positions(postings_file);
     patent_info = get_patent_info(patent_info_file)
     length_vector, n = get_length_vector(postings_file, last_line_pos)
-    org_query_str = extract_query_words(query_file)
-    org_query = process_query(org_query_str)
+    org_query = extract_query_words(query_file)
+
+    # patent_info
+    # print_patent_info(retrieve, not_retrieve, patent_info)
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
-    
-    # DEBUG DEBUG
-    VSM.getPhrasalScore("washing machine", last_line_pos, length_vector, n)
-    return
-    
-    first_scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
-    # write_to_output_file(output_file, first_scores)
+    first_scores = VSM.getScores(org_query, last_line_pos, length_vector, n)
 
-    no_of_documents = 10
-    no_of_terms = 10
-    PRF = PseudoRelevanceFeedback(dictionary, postings_file, line_positions, training_path, n)
-    new_query = PRF.generate_new_query(first_scores[:no_of_documents], no_of_terms, org_query_str)
+    PRF = PseudoRelevanceFeedback(first_scores[:10], dictionary, postings_file, line_positions)
+    new_query = PRF.generate_new_query(training_path, n)
+    query = org_query + ' ' + new_query
 
-    second_scores = VSM.get_scores(new_query, last_line_pos, length_vector, n)
+    second_scores = VSM.getScores(query, last_line_pos, length_vector, n)
+
     write_to_output_file(output_file, second_scores)
     
     if DEBUG_RESULTS:
-        print_result_info(first_scores, retrieve, not_retrieve, patent_info)
+        print_result_info(second_scores, retrieve, not_retrieve, patent_info)
+        
 
 def read_dict(dictionary_file):
     """
@@ -224,39 +253,6 @@ def extract_query_words(query_file):
 
     return query_content
 
-def process_query(query_str):
-    """
-    Tokenize and stem the query words and compute the frequency of each word in the query list
-
-    Arguments:
-        query_str       string of query words
-
-    Returns: 
-        query_count     a dictionary with the stemmed words and the its frequency in the query
-    """
-    stemmer = PorterStemmer()
-    
-    query_list = []
-    sentences = nltk.sent_tokenize(query_str)
-    for sentence in sentences:
-        words = nltk.word_tokenize(sentence)
-        for word in words:
-            # skip all words that contain just one item of punctuation or is a stopword
-            if word in string.punctuation or (DBG_USE_STOPS and word in stops): 
-                continue
-            # add stemmed word to query_list
-            query_list.append(stemmer.stem(word.lower()))
-
-    # count the frequency of each term
-    query_count = Counter(query_list)
-
-    # set the tf value for each term
-    query_weight = {}
-    for query_term, term_count in query_count.items():
-        query_weight[query_term] = 1 + math.log10(term_count)
-
-    return query_weight
-
 def write_to_output_file(output_file, scores):
     """
     writes the scores to output_file
@@ -282,13 +278,13 @@ def usage():
 # MAIN
 ######################
 
-query_file = 'queries/q1.xml'
-dictionary_file = 'dictionary2.txt'
-postings_file = 'postings2.txt'
+query_file = 'queries/q2.xml'
+dictionary_file = 'dictionary.txt'
+postings_file = 'postings.txt'
 output_file = 'output.txt'
-patent_info_file = 'patent_info2.txt'
-retrieve = 'queries/q1-qrels+ve.txt'
-not_retrieve = 'queries/q1-qrels-ve.txt'
+patent_info_file = 'patent_info.txt'
+retrieve = 'queries/q2-qrels+ve.txt'
+not_retrieve = 'queries/q2-qrels-ve.txt'
 
 last_dict_line = 0
 
