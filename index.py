@@ -8,6 +8,7 @@ import math
 import re
 from nltk.stem.porter import *
 import xml.etree.ElementTree as et
+import text_processing
 
 def indexing(training_path, postings_file, dictionary_file, patent_info_file):
     """
@@ -79,17 +80,16 @@ def indexing(training_path, postings_file, dictionary_file, patent_info_file):
             # tokenize sentences in words
             words = nltk.word_tokenize(sentence)
             for word in words:
-                # skip all words that contain just one item of punctuation
-                if word in string.punctuation: 
+                normalized = text_processing.normalize(word)
+                if normalized is None:
                     continue
-                # add stemmed word and file name containing the word to word_list
-                stemmed = word_stemming(word.encode('utf-8'), stemmer)
-                if stemmed in occurences:
-                    occurences[stemmed].append(i)
-                else:
-                    occurences[stemmed] = [i]
                 
-                this_doc_length[stemmed] = this_doc_length.get(stemmed, 0) + 1
+                if normalized in occurences:
+                    occurences[normalized].append(i)
+                else:
+                    occurences[normalized] = [i]
+                
+                this_doc_length[normalized] = this_doc_length.get(normalized, 0) + 1
                 
                 i += 1
         
@@ -138,9 +138,6 @@ def write_dict_postings(data, postings_file, dictionary_file, training_path):
     f.close()
     d.close()
 
-def word_stemming(old_word, stemmer):
-    return stemmer.stem(old_word.lower())
-
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file -q patent-info-file"
 
@@ -150,9 +147,9 @@ def usage():
 ######################
 
 training_path = "patsnap-corpus/"
-dictionary_file = "dictionary2.txt"
-postings_file = "postings2.txt"
-patent_info_file = "patent_info2.txt"
+dictionary_file = "dictionary.txt"
+postings_file = "postings.txt"
+patent_info_file = "patent_info.txt"
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'i:d:p:q:')

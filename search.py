@@ -2,23 +2,17 @@
 import sys
 import getopt
 import nltk
-import string
 import math
 import xml.etree.ElementTree as et
 from collections import Counter
-from nltk.stem.porter import *
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
-from math import log
 from collections import Counter
+import text_processing
 
 DEBUG_RESULTS = True
 PRINT_IPC = True
-DBG_USE_STOPS = True
-
-stops = set(nltk.corpus.stopwords.words('english'))
-#self.__stops |= {'mechanism', 'technology', 'technique', 'using', 'means', 'apparatus', 'method', 'system'}
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -234,19 +228,16 @@ def process_query(query_str):
     Returns: 
         query_count     a dictionary with the stemmed words and the its frequency in the query
     """
-    stemmer = PorterStemmer()
     
     query_list = []
     sentences = nltk.sent_tokenize(query_str)
     for sentence in sentences:
         words = nltk.word_tokenize(sentence)
-        for word in words:
-            # skip all words that contain just one item of punctuation or is a stopword
-            if word in string.punctuation or (DBG_USE_STOPS and word in stops): 
-                continue
-            # add stemmed word to query_list
-            query_list.append(stemmer.stem(word.lower()))
-
+        for word in words:            
+            normalized = text_processing.normalize(word)
+            if normalized is not None:
+                query_list.append(normalized)
+            
     # count the frequency of each term
     query_count = Counter(query_list)
 
@@ -283,10 +274,10 @@ def usage():
 ######################
 
 query_file = 'queries/q1.xml'
-dictionary_file = 'dictionary2.txt'
-postings_file = 'postings2.txt'
+dictionary_file = 'dictionary.txt'
+postings_file = 'postings.txt'
 output_file = 'output.txt'
-patent_info_file = 'patent_info2.txt'
+patent_info_file = 'patent_info.txt'
 retrieve = 'queries/q1-qrels+ve.txt'
 not_retrieve = 'queries/q1-qrels-ve.txt'
 

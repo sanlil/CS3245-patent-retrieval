@@ -1,6 +1,4 @@
 import math
-import nltk
-import string
 import operator
 from collections import Counter
 import phrasal_queries
