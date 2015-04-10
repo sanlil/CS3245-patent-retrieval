@@ -2,23 +2,19 @@
 import sys
 import getopt
 import nltk
-import string
 import math
 import xml.etree.ElementTree as et
 from collections import Counter
-from nltk.stem.porter import *
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
-from math import log
 from collections import Counter
+import text_processing
 
 DEBUG_RESULTS = False
 PRINT_IPC = False
 DBG_USE_STOPS = True
 USE_PRF = True
-
-stops = nltk.corpus.stopwords.words('english')
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -93,6 +89,10 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
     scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
+
+    # DEBUG DEBUG
+    # print VSM.get_phrasal_score("washing machine", last_line_pos, length_vector, n)
+    # return
 
     if USE_PRF:
         no_of_documents = 10
@@ -230,19 +230,16 @@ def process_query(query_str):
     Returns: 
         query_count     a dictionary with the stemmed words and the its frequency in the query
     """
-    stemmer = PorterStemmer()
     
     query_list = []
     sentences = nltk.sent_tokenize(query_str)
     for sentence in sentences:
         words = nltk.word_tokenize(sentence)
-        for word in words:
-            # skip all words that contain just one item of punctuation or is a stopword
-            if word in string.punctuation or (DBG_USE_STOPS and word in stops): 
-                continue
-            # add stemmed word to query_list
-            query_list.append(stemmer.stem(word.lower()))
-
+        for word in words:            
+            normalized = text_processing.normalize(word)
+            if normalized is not None:
+                query_list.append(normalized)
+            
     # count the frequency of each term
     query_count = Counter(query_list)
 

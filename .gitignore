@@ -1,11 +1,5 @@
 # output files
-output.txt
-debug_output.txt
-
-# Index files
-dictionary.txt
-postings.txt
-patent_info.txt
+*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

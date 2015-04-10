@@ -1,23 +1,36 @@
 import math
-import nltk
-import string
 import operator
-from collections import Counter
-from nltk.stem.porter import *
+import phrasal_queries
 
 class VectorSpaceModel:
     '''
         Class for calculating score with the Vector Space Model
     '''
-    
-    __stops = set(nltk.corpus.stopwords.words('english'))
 
     def __init__(self, dictionary, postings_file, line_positions):
         self.dictionary = dictionary
         self.postings_file = postings_file
         self.line_positions = line_positions
-        #self.__stops |= {'mechanism', 'technology', 'technique', 'using', 'means', 'apparatus', 'method', 'system'}
 
+    def get_phrasal_score(self, phrase, last_line_pos, length_vector, n):
+        """
+        Run the given phrasal query against the index. Documents that contain the phrase 
+        are retrieved, then ranked by treating the phrase as a free-text query (as suggested
+        in Manning et al. section 7.2.3)
+        """
+        query_terms, query_count = phrasal_queries.process_phrasal(phrase)
+        individual, combined = phrasal_queries.get_phrasal_postings(query_terms, self)
+        docs = phrasal_queries.get_documents_with_phrase(query_terms, individual, combined)
+        
+        # set the tf value for each term
+        query_weight = {}
+        for query_term, term_count in query_count.items():
+            query_weight[query_term] = 1 + math.log10(term_count)
+        
+        print docs
+        scores = self.__calculate_cosine_score(query_weight, length_vector, n, filter=docs)
+        return scores
+    
     def get_scores(self, query, last_line_pos, length_vector, n):
         """
             public method for calculating scores with the vector space model
@@ -29,34 +42,7 @@ class VectorSpaceModel:
         scores = self.__calculate_cosine_score(query, length_vector, n)
         return scores
 
-    # def __process_query(self, query):
-    #     """
-    #     Tokenize and stem the query words and compute the frequency of each word in the query list
-
-    #     Arguments:
-    #         query           string of query words
-
-    #     Returns: 
-    #         query_count     a dictionary with the stemmed words and the its frequency in the query
-    #     """
-    #     stemmer = PorterStemmer()
-        
-    #     query_list = []
-    #     sentences = nltk.sent_tokenize(query)
-    #     for sentence in sentences:
-    #         words = nltk.word_tokenize(sentence)
-    #         for word in words:
-    #             # skip all words that contain just one item of punctuation or is a stopword
-    #             if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
-    #                 continue
-    #             # add stemmed word to query_list
-    #             query_list.append(stemmer.stem(word.lower()))
-
-    #     # count the frequency of each term
-    #     query_count = Counter(query_list)
-    #     return query_count
-
-    def __calculate_cosine_score(self, query, length_vector, n):
+    def __calculate_cosine_score(self, query, length_vector, n, filter=None):
         """
         computes the cosine scores for a query and all given documents and returns the scores for relevant documents
 
@@ -64,6 +50,8 @@ class VectorSpaceModel:
             query           dictionary containing query words and the number of times it occures in the query            
             length_vector   dictionary containing the normalization factor for each document accessable by document name
             n               the number of documents in the training data
+            filter          if not None, a set containing documents to contain scores for. All other documents are ignored.
+                            Note that if a document in filter would have a score of zero, it will not appear in the output.
 
         Returns:
             ordered_scores  list of tuples with document names and scores for relevant documents ordered by decreasing score
@@ -75,10 +63,14 @@ class VectorSpaceModel:
         for query_term, term_tf in query.items():
             weight_query = self.__get_weight_query_term(query_term, term_tf, n)
             length_query += math.pow(weight_query, 2)
-            term_postings = self.__get_postings(query_term)
+            term_postings = self.get_postings(query_term, positional=False)
             all_relevant_documents = []
 
             for (doc_name, tf) in term_postings:
+                # Ignore any documents not in the filter set
+                if filter is not None and doc_name not in filter:
+                    continue
+            
                 all_relevant_documents.append(doc_name)
                 weight_d_t = float(tf)
                 if doc_name in scores.keys():
@@ -95,19 +87,22 @@ class VectorSpaceModel:
         ordered_scores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True);
         return ordered_scores
 
-    def __get_postings(self, word):
+    def get_postings(self, word, positional):
         """
         looks up a word in the given dictionary 
         and returns all postings that belong to that word
 
         Arguments:
             word            term that is meant to be look up
+            positional      whether the postings should include positional information.
 
-        Returns:    
-           list of tuples (doc_name, tf) corresponding to the word
+        Returns:
+            if positional is False:
+                list of tuples (doc_name, tf) corresponding to the word
+            Otherwise;
+                list of tuples (doc_name, tf, positions) corresponding to the word
+                where 'positions' is a list of integers where the 
         """
-
-        no_of_postings_parameters = 4
 
         # dictionary contains word
         if word in self.dictionary.keys():
@@ -120,8 +115,16 @@ class VectorSpaceModel:
             while count < len(postings_list):
                 doc_name = postings_list[count]
                 tf = postings_list[count+1]
-                doc_tf_list.append( ( doc_name, float(tf) ) )
-                count += no_of_postings_parameters
+                num_positions = int(postings_list[count+2])
+                if not positional:
+                    doc_tf_list.append( ( doc_name, float(tf) ) )
+                    count += 3 + num_positions
+                else:
+                    count += 3
+                    positions = [int(p) for p in postings_list[count:(count + num_positions)]]
+                    doc_tf_list.append((doc_name, float(tf), positions))
+                    count += num_positions
+                        
             f.close()
             return doc_tf_list
         # dictionary does not contain word
