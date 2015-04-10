@@ -49,11 +49,11 @@ All results are written down to the output file.
 
 ~ Thoughts, experiments and outcomes:
 
-We started with a vector space model implemented in VectorSpaceModel.py as a base. Furthermore we wanted to add additional methods to improve our outcomes.
+We started with a vector space model implemented in VectorSpaceModel.py as a base. Furthermore the goal was to add additional methods to improve our outcomes. The recall was always good as all relevant documents could be retrieved. Some of them are not ranked high, though. We tried to improve the ranking of the VSM scores with reveral methods. In the end we generated the best outcome by using our implementation of the VSM including Stopwords.
+The algorithms are described and discussed in the following regarding their application reasons and outcomes.
 
 Vector Space Model:
 	APPLIED 
-	- Reason:
 
 	Implementation:
 	After processing the query (lower case, stemming, strip word when just punctuation) the cosine_score algorithm is applied: 
@@ -88,16 +88,16 @@ IPC: A classification system for patents
 	2. Guess the IPC from the query terms
 
 Query Expansion: using synonyms from Word Net (https://wordnet.princeton.edu/) to expand the query
-
+	NOT APPLIED
+	- Reason: The relevant documents that are retrieved but ranked badly just don't either contain synonyms of the terms in the query. So this method doesn't seem like a good solution to retrieve those documents better at the first sight.
 
 Latent Semantic Analysis:
-	NOT IMPLEMENTED
+	NOT APPLIED
 	- Reason: time, seems to be promising in patent information retrieval in general and regarding our results: 
 	Our difficulty was always that we could find all documents but some of them were retrieved rather in the end. Manual comparision could show that the main reason for this might be that some of the relevant documents hardly have any overlapping words, the content seems to be fitting, though. So actually what we really want to do is compare the meanings or concepts behind the words. LSA attempts to solve this problem by mapping both words and documents into a "concept" space and doing the comparison in this space.
 
-
 Run-time optimization:
-
+	The test queries are solved easily within two minutes, so no further adjustments are made. 
 
 Further thoughts / ideas how to improve results:
 - Positional Index / Phrasal queries (eg “waching with bubles, washing with foam”)
@@ -105,6 +105,35 @@ Further thoughts / ideas how to improve results:
 	° Rank highly cited documents higher
 	° Rank documents by well known writers higher (?)
 	° recently added patents are more important
+	--> distribution of the publication years gives the impression that recent years could be a little more important in query 1, query 2 makes us reject this hypothesis, though
+		Q1	
+		Relevant	Irrelevant
+		1994 1		1979 1
+		1995 1		1988 1
+		1996 1		1989 1
+		1997 1		1990 1
+		2001 1		1991 1
+		2005 1		1992 1
+		2007 1		1997 1
+		2008 5		2000 2
+		2009 1		2002 2
+		2010 3		2003 1
+		2011 5		2005 1
+		2012 1		2006 1
+		 			2007 2
+		 			2008 1
+		 			2010 1
+		 			2011 4
+		 			2012 3
+			
+		Q2	
+		Relevant	Irrelevant
+		2008 4		2008 7
+		2009 7		2009 4
+		2010 9		2010 7
+		2011 5		2011 7
+
+
 - expand resulting patents by looking at
 	° what the author / invetor has done
 	° other documents with same classification (IPC)
