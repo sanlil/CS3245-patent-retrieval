@@ -11,7 +11,7 @@ from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from collections import Counter
 import text_processing
 
-DEBUG_RESULTS = False
+DEBUG_RESULTS = True
 PRINT_IPC = False
 DBG_USE_STOPS = True
 USE_PRF = True
@@ -140,26 +140,32 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
 
     # usage of IPC: take best results, 
     # look in patents of their subclasses and add best words to the query, rerun query
-    """
-    if USE_IPC:
-    	no_of_documents = 10
-        no_of_terms = 10
-        bestDocs = scores[:no_of_documents]
-        new_query = generate_new_query(bestDocs, no_of_terms)
-    """
+
+    new_query_PRF = {}
+    new_query_IPC = {}
 
     if USE_PRF:
-        no_of_documents = 10
-        no_of_terms = 10
+        no_of_documents = 0
+        no_of_terms = 0
         PRF = PseudoRelevanceFeedback(dictionary, postings_file, line_positions, training_path, n)
-        new_query = PRF.generate_new_query(scores[:no_of_documents], no_of_terms, org_query_str)
+        new_query_PRF = PRF.generate_new_query_topk(scores[:no_of_documents], no_of_terms, org_query_str)
 
-        scores = VSM.get_scores(new_query, last_line_pos, length_vector, n)
+    if USE_IPC:
+    	no_of_documents = 10
+        no_of_terms = 120
+    	new_query_IPC = PRF.generate_new_query_topIPC(scores[:no_of_documents], no_of_terms, org_query_str, patent_info)
+
+    # merge new_queries
+    new_query = new_query_PRF.copy()
+    new_query.update(new_query_IPC)
+
+    scores = VSM.get_scores(new_query, last_line_pos, length_vector, n)
     
     if DEBUG_RESULTS:
         print_result_info(scores, retrieve, not_retrieve, patent_info)
     
     write_to_output_file(output_file, scores)
+
 
 def read_dict(dictionary_file):
     """

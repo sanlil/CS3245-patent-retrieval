@@ -143,14 +143,12 @@ class IPC:
         """
         patentNos = []
 
-        subIPC = self.subclass()
-
         POSITION_IPC = 2
 
         for patentNo in patent_info:
             ipc = IPC(patent_info[patentNo][POSITION_IPC])
-
-            if ipc in subIPC:
+            
+            if ipc in self:
                 patentNos.append(patentNo)
 
         return patentNos
