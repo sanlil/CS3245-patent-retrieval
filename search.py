@@ -7,7 +7,7 @@ import xml.etree.ElementTree as et
 from collections import Counter
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
-from IPC import IPC
+# from IPC import IPC
 from collections import Counter
 import text_processing
 
@@ -124,7 +124,8 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     line_positions, last_line_pos = get_line_positions(postings_file);
     patent_info = get_patent_info(patent_info_file)
     length_vector, n = get_length_vector(postings_file, last_line_pos)
-    org_query = extract_query_words(query_file)
+    org_query_str = extract_query_words(query_file)
+    org_query = process_query(org_query_str)
 
     # patent_info
     # print_patent_info(retrieve, not_retrieve, patent_info)

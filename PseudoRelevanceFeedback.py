@@ -4,6 +4,7 @@ import operator
 from collections import Counter
 import xml.etree.ElementTree as et
 import text_processing
+from nltk.stem.porter import *
 
 class PseudoRelevanceFeedback:
     '''
@@ -75,9 +76,9 @@ class PseudoRelevanceFeedback:
         """
         old_query_list = self.__tokenize_string(old_query_str)
         new_query_list = self.__tokenize_string(content)
-        term_list = [x for x in new_query_list if x not in old_query_list]
+        # term_list = [x for x in new_query_list if x not in old_query_list]
 
-        term_count = Counter(term_list)
+        term_count = Counter(new_query_list)
 
         top_query_terms = self.__get_top_terms(term_count, no_of_terms)
         return (top_query_terms, old_query_list)
@@ -86,8 +87,6 @@ class PseudoRelevanceFeedback:
         """
             Tokenize and stem a string and remove punctuation and stopwords
         """
-        stemmer = PorterStemmer()
-
         word_list = []
         sentences = nltk.sent_tokenize(the_string)
         for sentence in sentences:
@@ -135,7 +134,7 @@ class PseudoRelevanceFeedback:
         """
 
         # calculate tf in query
-        log_tf = 1 + math.log10(term_count)
+        log_tf = self.__compute_tf(term_count)
 
         if term in self.dictionary.keys():
             (freq, postings_line) = self.dictionary[term]
@@ -150,13 +149,20 @@ class PseudoRelevanceFeedback:
             Set tf values for the new terms to 0.5 and for the old ones to 1.5
             Reference: http://ceur-ws.org/Vol-1176/CLEF2010wn-ImageCLEF-Larson2010.pdf
         """
+        old_query_count = Counter(old_query_terms)
+
         query_weights = {}
         for term in new_query_terms:
             query_weights[term] = 0.5
         for term in old_query_terms:
-            query_weights[term] = 1.5
+            if term in new_query_terms:
+                query_weights[term] = self.__compute_tf(old_query_count[term])*1.5
+            else:
+                query_weights[term] = self.__compute_tf(old_query_count[term])
         return query_weights
 
+    def __compute_tf(self, term_count):
+        return 1 + math.log10(term_count)
 
             
 
