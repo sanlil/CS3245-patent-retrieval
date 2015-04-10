@@ -136,6 +136,24 @@ class IPC:
             
         # We have a group. Therefore we can't contain anything.
         return False
+
+    def getPatents(self, patent_info):
+        """
+        Return all patentNo that are part of the subclass of the current IPC
+        """
+        patentNos = []
+
+        subIPC = self.subclass()
+
+        POSITION_IPC = 2
+
+        for patentNo in patent_info:
+            ipc = IPC(patent_info[patentNo][POSITION_IPC])
+
+            if ipc in subIPC:
+                patentNos.append(patentNo)
+
+        return patentNos
         
     def section(self):
         """

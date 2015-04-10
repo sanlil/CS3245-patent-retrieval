@@ -15,6 +15,7 @@ DEBUG_RESULTS = False
 PRINT_IPC = False
 DBG_USE_STOPS = True
 USE_PRF = True
+USE_IPC = True
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -136,6 +137,16 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     # DEBUG DEBUG
     # print VSM.get_phrasal_score("washing machine", last_line_pos, length_vector, n)
     # return
+
+    # usage of IPC: take best results, 
+    # look in patents of their subclasses and add best words to the query, rerun query
+    """
+    if USE_IPC:
+    	no_of_documents = 10
+        no_of_terms = 10
+        bestDocs = scores[:no_of_documents]
+        new_query = generate_new_query(bestDocs, no_of_terms)
+    """
 
     if USE_PRF:
         no_of_documents = 10
