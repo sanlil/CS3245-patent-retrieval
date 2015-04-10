@@ -9,7 +9,22 @@ import re
 from nltk.stem.porter import *
 import xml.etree.ElementTree as et
 
-def indexing2(training_path, postings_file, dictionary_file, patent_info_file):
+def indexing(training_path, postings_file, dictionary_file, patent_info_file):
+    """
+    Create an index of the corpus at training_path, placing the index in
+    dictionary_file, postings_file and patent_info_file.
+    
+    dictionary_file will contain a list of the terms contained in the corpus.
+    On every line, the following information will be included (separated by spaces):
+        <term indexed> <document frequency> <postings pointer>
+    The postings pointer is a line number in the postings file.
+    Every line of the postings file is a postings list for the term that points to that
+    line. A line contains several entries. Each entry has the following form:
+        <patent ID> <log tf> <tf> <list of positions>
+    The list of positions indicates the word positions at which the indexed word can
+    be found in the given patent (a standard positional index). The list is always
+    <tf> elements long.
+    """
     pats = sorted(os.listdir(training_path))
     
     pi = open(patent_info_file, 'w')
@@ -158,4 +173,4 @@ for o, a in opts:
     else:
         assert False, "unhandled option"
 
-indexing2(training_path, postings_file, dictionary_file, patent_info_file)
+indexing(training_path, postings_file, dictionary_file, patent_info_file)
