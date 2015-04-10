@@ -30,9 +30,7 @@ def indexing(training_path, postings_file, dictionary_file, patent_info_file):
     
     pi = open(patent_info_file, 'w')
     postings = dict()
-    doc_lengths = dict()
     for pat in pats:
-        this_doc_length = dict()
         tree = et.parse(os.path.join(training_path, pat))
         
         pat_id = os.path.splitext(pat)[0]
@@ -89,8 +87,6 @@ def indexing(training_path, postings_file, dictionary_file, patent_info_file):
                 else:
                     occurences[normalized] = [i]
                 
-                this_doc_length[normalized] = this_doc_length.get(normalized, 0) + 1
-                
                 i += 1
         
         for word, positions in occurences.iteritems():
@@ -98,13 +94,6 @@ def indexing(training_path, postings_file, dictionary_file, patent_info_file):
                 postings[word].append((pat_id, positions))
             else:
                 postings[word] = [(pat_id, positions)]
-        
-        sumsq = 0
-        for tok, tf in this_doc_length.iteritems():
-			log_tf = 0 if tf == 0 else 1 + math.log(tf)
-			sumsq += log_tf * log_tf
-            
-        doc_lengths[pat_id] = sumsq
         
     pi.close()
     write_dict_postings(postings, postings_file, dictionary_file, training_path)    
@@ -131,7 +120,7 @@ def write_dict_postings(data, postings_file, dictionary_file, training_path):
         line_index += 1
 
     for doc, length in doc_lengths.iteritems():
-        f.write(doc + ' ' + str(length) + ' ')
+        f.write(doc + ' ' + str(math.sqrt(length)) + ' ')
 
     d.write("# " + training_path)
 

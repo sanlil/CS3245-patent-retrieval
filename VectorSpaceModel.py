@@ -27,8 +27,12 @@ class VectorSpaceModel:
         for query_term, term_count in query_count.items():
             query_weight[query_term] = 1 + math.log10(term_count)
         
-        print docs
         scores = self.__calculate_cosine_score(query_weight, length_vector, n, filter=docs)
+        
+        # Fred: Intuitively, I feel like the scores from phrasal queries should be higher
+        # than simple tf-idf but I don't really know what the best way would be. Multiplying
+        # by the length of the query seems like an okay compromise.
+        weighted_scores = [(doc, len(phrase) * score) for doc, score in scores]
         return scores
     
     def get_scores(self, query, last_line_pos, length_vector, n):
