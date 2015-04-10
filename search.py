@@ -64,7 +64,47 @@ def print_result_info(scores, retrieve, not_retrieve, patent_info):
     print 'IPC subclasses in the top 50 documents: '
     top = Counter([str(IPC(patent_info[doc][2]).subclass()) for doc, score in scores[:50]])
     print top
-    
+
+def print_patent_info(retrieve, not_retrieve, patent_info):
+	"""
+	print out patent_info of relevant and irrelevant patents
+	"""
+	# Obtain the documents that we should retrieve and those that we shouldn't
+	with open(retrieve) as r, open(not_retrieve) as n:
+		wanted = set([l.rstrip() for l in r.readlines()])
+		unwanted = set([l.rstrip() for l in n.readlines()])
+
+	publication_years_rel = {}
+	print "Relevant documents:"
+	for patentNo in wanted:
+		publication_year = patent_info[patentNo][0]
+		count_citation = patent_info[patentNo][1]
+		if publication_year in publication_years_rel.keys():
+			publication_years_rel[publication_year] += 1
+		else:
+			publication_years_rel[publication_year] = 1
+
+		#print patentNo, "\t\t", publication_year, count_citation
+
+	for key in sorted(publication_years_rel.keys()):
+		print key, publication_years_rel[key]
+	print "---"
+
+	publication_years_irrel = {}
+	print "Irrelevant documents:"
+	for patentNo in unwanted:
+		publication_year = patent_info[patentNo][0]
+		count_citation = patent_info[patentNo][1]
+		if publication_year in publication_years_irrel.keys():
+			publication_years_irrel[publication_year] += 1
+		else:
+			publication_years_irrel[publication_year] = 1
+
+		#print patentNo, "\t\t", patent_info[patentNo][0], patent_info[patentNo][1]  
+
+	for key in sorted(publication_years_irrel.keys()):
+		print key, publication_years_irrel[key]
+
 def search(query_file, dictionary_file, postings_file, output_file, patent_info_file, retrieve, not_retrieve):
     """
     reads in and executes queries with the content of dictionary and postings file
@@ -84,8 +124,10 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     line_positions, last_line_pos = get_line_positions(postings_file);
     patent_info = get_patent_info(patent_info_file)
     length_vector, n = get_length_vector(postings_file, last_line_pos)
-    org_query_str = extract_query_words(query_file)
-    org_query = process_query(org_query_str)
+    org_query = extract_query_words(query_file)
+
+    # patent_info
+    # print_patent_info(retrieve, not_retrieve, patent_info)
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
     scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
