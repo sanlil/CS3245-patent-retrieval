@@ -38,9 +38,9 @@ Preparation that is needed for the search process contains
 - getting length vector for normalization
 		(last line in postings file)
 - getting line positions to access postings file
-		Line positions is a list of offsets (positions) that contains the starting position of each line in a file. As our dictionary points to lines of the postings file we needed a way to access line content without reading the whole file into memory. We deal with this task by using line positions and the function seek(). 
+		Line positions is a list of offsets (positions) that contains the starting position of each line in a file. As our dictionary points to lines of the postings file we needed a way to access line content without reading the whole file into memory. We deal with this task by using the line positions and the function seek(). 
 
-We apply the Vector Space Model (implemented in an extra class) that generates a list of documents (patentNo) and their scores ordered by decreasing score. (additional information in secation below)
+We apply the Vector Space Model (implemented in an external class) that generates a list of documents (patentNo) and their scores ordered by decreasing score. (additional information in secation below)
 
 Furthermore...
 
@@ -56,7 +56,7 @@ Vector Space Model:
 	- Reason:
 
 	Implementation:
-	After processing the query (lower case, stemming, strip word when just punctuation) the cosine_score algorithm is applied: 
+	After processing the query (lower case, stemming, strip word when just punctuation) the cosine score algorithm is applied: 
 	Query and document are represented as weighted tf.idf vectors (no idf for documents). Afterwards normalization is applied and the cosine similarity is computed. The documents are ordered by their resulting scores.
 
 	Stopwords - are removed! Contained are those defined by nltk.corpus.stopwords.words('english'), some manually added words
@@ -65,14 +65,17 @@ Vector Space Model:
 
 SIMNOMERGE: measures similarity between query and patent xml trees
 	NOT APPLIED 
-	- Reason: Especially title in query and patent did not seem to be on the same language level regarding the choice of words and structure of the title. In the query the title describes describes the usage of the searched patent while the title in the patent describes rather the method. The words used in the query are also rather basic, not so specific and rather structured like a sentence compared to the normalization style in the patent. As those tags do not seem to be on the same language and content level we decided not to use this algorithm.
+	- Reason: Especially title in query and patent did not seem to be on the same language level regarding the choice of words and structure of the title. In the query, the title describes the usage of the searched patent while the title in the patent describes rather the method. The words used in the query are also rather basic, not so specific and rather structured like a sentence compared to the normalization style in the patent. As those tags do not seem to be on the same language and content level we decided not to use this algorithm.
 
 Pseudo Relevance Feedback:
 	APPLIED
 
 	Implementation:
 	take n best results of scores produced by VSM. Add (read in, tokenized and processed) terms of the best resulting patents and add them to the existing query. Just the highest ranked k terms regarding the tf.idf in the documents are taken.
-	Afterwards the query is processed again.
+	Afterwards the query is processed again. The values of n and k was decided from doing manual experiments with the two queries that we had got and the final value that we used was n=10 and k=10.
+
+	Improvement:
+	To make the original query words be more important in the search than the old ones, we let the new words get the tf value 0.5 and the old ones keeps their real tf value. However, if an old term appeared in the new query list, the tf was set to 1.5 times the original value. This idea is takn from the paper Larson, R. Ray 2010, Blind Relevance Feedback for the ImageCLEF Wikipedia Retrieval Task, http://ceur-ws.org/Vol-1176/CLEF2010wn-ImageCLEF-Larson2010.pdf
 
 Field / zone treatment:
 	see IPC
@@ -88,10 +91,14 @@ IPC: A classification system for patents
 	2. Guess the IPC from the query terms
 
 Query Expansion: using synonyms from Word Net (https://wordnet.princeton.edu/) to expand the query
+	NOT APPLIED 
+	- Reason: From looking at the synonyms given to given query words we were under the impression that the new synonyms would not help us retrieve new documents, since these words did not appear in the correct documents not found or low ranked. We therefore choose to focus on Pseudo Relevance Feedback instead.
 
+Positional Index and Phrasal Queries
+	APPLIED
 
 Latent Semantic Analysis:
-	NOT IMPLEMENTED
+	NOT APPLIED 
 	- Reason: time, seems to be promising in patent information retrieval in general and regarding our results: 
 	Our difficulty was always that we could find all documents but some of them were retrieved rather in the end. Manual comparision could show that the main reason for this might be that some of the relevant documents hardly have any overlapping words, the content seems to be fitting, though. So actually what we really want to do is compare the meanings or concepts behind the words. LSA attempts to solve this problem by mapping both words and documents into a "concept" space and doing the comparison in this space.
 
@@ -100,17 +107,18 @@ Run-time optimization:
 
 
 Further thoughts / ideas how to improve results:
-- Positional Index / Phrasal queries (eg “waching with bubles, washing with foam”)
 - Modify scores according to # of citations, publication year
 	° Rank highly cited documents higher
-	° Rank documents by well known writers higher (?)
-	° recently added patents are more important
+	° Rank documents by well known writers higher
+	° recently created patents are more important than older ones
 - expand resulting patents by looking at
-	° what the author / invetor has done
-	° other documents with same classification (IPC)
+	° What the author / invetor has done
+	° Other documents with same classification (IPC)
+	° Other documents that has cited highly ranked results
 	° Other references
-- Relevance feedback with IPC, inventor, cites
-- Have threshold for low idf and remove those words to not get a lot of unrelevant documents
+- Relevance feedback from IPC, the inventor, cited documents
+- Complement to stopwords: 
+	Have threshold for low idf and remove those words to not get a lot of unrelevant documents
 
 
 ---
@@ -139,27 +147,29 @@ index.py        			Used for creating dictionary and postings list
 search.py       			Reads the dictionary file into memory, formats and solves queries with the information in the postings file
 VectorSpaceModel.py 		class containing implementation for applying VSM
 PseudoRelevanceFeedback.py  class containing implementation for applying PRF
-IPC.py 						class containing implementation for applying IPC
+IPC.py 						class containing implementation for using the IPC
+text_processing.py 			Includes general functionality for applying case-folding, stemming and stopping
 
 TEXT FILES
 dictionary.txt  The dictionary
 postings.txt    The postings list
 patent_info.txt information extracted from patent corpus structured by patent ID
-				- used for better search results
 
 README.txt      Information about the submission (this file)
 
 
 == Allocation of work ==
 
-discusstion and conception  A0135280M, A0135622M, A0134784X
-index.py 					A0135280M, A0135622M  
-search.py 					A0135280M, A0135622M, A0134784X
-VectorSpaceModel.py 		A0135280M - main parts of the code produced in precvious assignment by A0135280M, A0135622M
-PseudoRelevanceFeedback.py  A0135280M
-IPC.py 						A0134784X (deep research and implementation)
-Latent Semantic Analysis	A0135622M (research)
-README.txt 					A0135622M
+discussion and conception  			A0135280M, A0135622M, A0134784X
+basic indexing 						A0135280M, A0135622M  
+basic searching 					A0135280M, A0135622M
+debug prints of results				A0134784X
+vector space model  				A0135280M - main parts of the code produced in precvious assignment by A0135280M, A0135622M
+pseudo relevance feedback 			A0135280M
+positional index/phrasal queries 	A0134784X 
+IPC 								A0134784X (deep research and implementation)
+Latent Semantic Analysis			A0135622M (research)
+README.txt 							A0135622M
 
 
 == Statement of individual work ==
