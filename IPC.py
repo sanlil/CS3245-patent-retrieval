@@ -132,7 +132,7 @@ class IPC:
             
         # The subclasses are identical. If we have no group, we contain them only if they have a group
         if len(self._group) == 0:
-            return len(other._group) == 0
+            return len(other._group) != 0
             
         # We have a group. Therefore we can't contain anything.
         return False
