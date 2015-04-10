@@ -1,19 +1,14 @@
 import nltk
-import string
 import math
 import operator
 from collections import Counter
 import xml.etree.ElementTree as et
-from nltk.stem.porter import *
-
-DBG_USE_STOPS = True
+import text_processing
 
 class PseudoRelevanceFeedback:
     '''
         Class for making new search with Pseudo Relevance Feedback
     '''
-
-    __stops = nltk.corpus.stopwords.words('english')
 
     def __init__(self, dictionary, postings_file, line_positions, training_path, n):
         self.dictionary = dictionary
@@ -98,11 +93,10 @@ class PseudoRelevanceFeedback:
         for sentence in sentences:
             words = nltk.word_tokenize(sentence)
             for word in words:
-                # skip all words that contain just one item of punctuation or is a stopword
-                if word in string.punctuation or (DBG_USE_STOPS and word in self.__stops): 
-                    continue
-                # add the stemmed word to the word list
-                word_list.append(stemmer.stem(word.lower()))
+                normalized = text_processing.normalize(word)
+                if normalized is not None:
+                    word_list.append(normalized)
+                
         return word_list
 
     def __get_top_terms(self, term_count, no_of_terms):
@@ -119,7 +113,6 @@ class PseudoRelevanceFeedback:
         stemmer = PorterStemmer()
         query_weights = {}
         for term, count in term_count.items():
-            # print "term",term
             stemmed_term = stemmer.stem(term)
             weight = self.__get_weight_query_term(stemmed_term, count)
             query_weights[term] = weight

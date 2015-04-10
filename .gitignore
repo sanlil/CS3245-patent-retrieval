@@ -1,8 +1,6 @@
 # output files
 output.txt
 debug_output.txt
-
-# Index files
 dictionary.txt
 postings.txt
 patent_info.txt

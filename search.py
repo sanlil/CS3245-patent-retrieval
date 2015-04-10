@@ -1,16 +1,20 @@
 #!/usr/bin/python
 import sys
 import getopt
-from nltk.stem.porter import *
+import nltk
+import math
 import xml.etree.ElementTree as et
+from collections import Counter
 from VectorSpaceModel import VectorSpaceModel
 from PseudoRelevanceFeedback import PseudoRelevanceFeedback
 from IPC import IPC
-from math import log
 from collections import Counter
+import text_processing
 
-DEBUG_RESULTS = True
-PRINT_IPC = True
+DEBUG_RESULTS = False
+PRINT_IPC = False
+DBG_USE_STOPS = True
+USE_PRF = True
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -126,19 +130,24 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     # print_patent_info(retrieve, not_retrieve, patent_info)
 
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
-    first_scores = VSM.getScores(org_query, last_line_pos, length_vector, n)
+    scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
 
-    PRF = PseudoRelevanceFeedback(first_scores[:10], dictionary, postings_file, line_positions)
-    new_query = PRF.generate_new_query(training_path, n)
-    query = org_query + ' ' + new_query
+    # DEBUG DEBUG
+    # print VSM.get_phrasal_score("washing machine", last_line_pos, length_vector, n)
+    # return
 
-    second_scores = VSM.getScores(query, last_line_pos, length_vector, n)
+    if USE_PRF:
+        no_of_documents = 10
+        no_of_terms = 10
+        PRF = PseudoRelevanceFeedback(dictionary, postings_file, line_positions, training_path, n)
+        new_query = PRF.generate_new_query(scores[:no_of_documents], no_of_terms, org_query_str)
 
-    write_to_output_file(output_file, second_scores)
+        scores = VSM.get_scores(new_query, last_line_pos, length_vector, n)
     
     if DEBUG_RESULTS:
-        print_result_info(second_scores, retrieve, not_retrieve, patent_info)
-        
+        print_result_info(scores, retrieve, not_retrieve, patent_info)
+    
+    write_to_output_file(output_file, scores)
 
 def read_dict(dictionary_file):
     """
@@ -252,6 +261,36 @@ def extract_query_words(query_file):
             query_content += ' '.join(desc.split()[4:])
 
     return query_content
+
+def process_query(query_str):
+    """
+    Tokenize and stem the query words and compute the frequency of each word in the query list
+
+    Arguments:
+        query_str       string of query words
+
+    Returns: 
+        query_count     a dictionary with the stemmed words and the its frequency in the query
+    """
+    
+    query_list = []
+    sentences = nltk.sent_tokenize(query_str)
+    for sentence in sentences:
+        words = nltk.word_tokenize(sentence)
+        for word in words:            
+            normalized = text_processing.normalize(word)
+            if normalized is not None:
+                query_list.append(normalized)
+            
+    # count the frequency of each term
+    query_count = Counter(query_list)
+
+    # set the tf value for each term
+    query_weight = {}
+    for query_term, term_count in query_count.items():
+        query_weight[query_term] = 1 + math.log10(term_count)
+
+    return query_weight
 
 def write_to_output_file(output_file, scores):
     """

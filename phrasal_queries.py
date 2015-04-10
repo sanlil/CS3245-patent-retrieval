@@ -9,6 +9,12 @@ from bisect import bisect_left
 DBG_USE_STOPS = True
 stops = set(nltk.corpus.stopwords.words('english'))
 
+def generate_phrasal_queries(title, description):
+    """
+    Generate some phrasal queries from a given query title and description.
+    """
+    pass
+
 def list_contains(a, x):
     """
     Check whether the sorted list a contains the element x.
