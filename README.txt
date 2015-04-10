@@ -75,7 +75,7 @@ Pseudo Relevance Feedback:
 	Afterwards the query is processed again. The values of n and k was decided from doing manual experiments with the two queries that we had got and the final value that we used was n=10 and k=10.
 
 	Improvement:
-	To make the original query words be more important in the search than the old ones, we let the new words get the tf value 0.5 and the old ones keeps their real tf value. However, if an old term appeared in the new query list, the tf was set to 1.5 times the original value. This idea is takn from the paper Larson, R. Ray 2010, Blind Relevance Feedback for the ImageCLEF Wikipedia Retrieval Task, http://ceur-ws.org/Vol-1176/CLEF2010wn-ImageCLEF-Larson2010.pdf
+	To make the original query words be more important in the search than the new ones, we let the new words get the tf value 0.5 and the original ones keeps their real tf value. However, if an old term appeared in the new query list, the tf is set to 1.5 times the original value. This idea is taken from the paper Larson, R. Ray 2010, Blind Relevance Feedback for the ImageCLEF Wikipedia Retrieval Task, http://ceur-ws.org/Vol-1176/CLEF2010wn-ImageCLEF-Larson2010.pdf
 
 Field / zone treatment:
 	see IPC
