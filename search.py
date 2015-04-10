@@ -15,8 +15,10 @@ from collections import Counter
 
 DEBUG_RESULTS = True
 PRINT_IPC = True
+DBG_USE_STOPS = True
 
-stops = nltk.corpus.stopwords.words('english')
+stops = set(nltk.corpus.stopwords.words('english'))
+#self.__stops |= {'mechanism', 'technology', 'technique', 'using', 'means', 'apparatus', 'method', 'system'}
 
 def print_result_info(scores, retrieve, not_retrieve, patent_info):
     """
@@ -102,7 +104,7 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     write_to_output_file(output_file, second_scores)
     
     if DEBUG_RESULTS:
-        print_result_info(second_scores, retrieve, not_retrieve, patent_info)
+        print_result_info(first_scores, retrieve, not_retrieve, patent_info)
 
 def read_dict(dictionary_file):
     """
@@ -276,10 +278,10 @@ def usage():
 ######################
 
 query_file = 'queries/q1.xml'
-dictionary_file = 'dictionary.txt'
-postings_file = 'postings.txt'
+dictionary_file = 'dictionary2.txt'
+postings_file = 'postings2.txt'
 output_file = 'output.txt'
-patent_info_file = 'patent_info.txt'
+patent_info_file = 'patent_info2.txt'
 retrieve = 'queries/q1-qrels+ve.txt'
 not_retrieve = 'queries/q1-qrels-ve.txt'
 
