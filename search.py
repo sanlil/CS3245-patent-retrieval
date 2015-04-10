@@ -94,7 +94,7 @@ def search(query_file, dictionary_file, postings_file, output_file, patent_info_
     VSM = VectorSpaceModel(dictionary, postings_file, line_positions)
     
     # DEBUG DEBUG
-    VSM.getPhrasalScore("washing machine", last_line_pos, length_vector, n)
+    print VSM.get_phrasal_score("washing machine", last_line_pos, length_vector, n)
     return
     
     first_scores = VSM.get_scores(org_query, last_line_pos, length_vector, n)
